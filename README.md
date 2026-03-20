@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  The upgraded management plane built on top of ClawReef for operating OpenClaw and Linux desktop runtimes at cluster scale.
+  The world's first platform purpose-built for batch deployment and operations of OpenClaw at cluster scale.
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/ClawReef-Upgraded%20to%20ClawManager-e25544?style=for-the-badge" alt="ClawManager Upgrade" />
+  <img src="https://img.shields.io/badge/ClawManager-Virtual%20Desktop%20Platform-e25544?style=for-the-badge" alt="ClawManager Platform" />
   <img src="https://img.shields.io/badge/Go-1.21%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.21+" />
   <img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" />
   <img src="https://img.shields.io/badge/Kubernetes-Native-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes Native" />
@@ -35,13 +35,13 @@
 
 ## 🚀 News
 
-- [03/20/2026] **ClawManager README refresh** - Reorganized the project introduction based on the ClawReef release README and added ClawManager-specific capabilities including Webtop support, desktop portal access, runtime image settings, OpenClaw memory/preferences Markdown backup and migration, cluster resource overview, and multilingual documentation.
+- [03/20/2026] **ClawManager New Release** - ClawManager is now released as a virtual desktop management platform featuring batch deployment, Webtop support, desktop portal access, runtime image settings, OpenClaw memory/preferences Markdown backup and migration, cluster resource overview, and multilingual documentation.
 
 ## 👀 Overview
 
-ClawManager is the upgraded version of ClawReef. It keeps the original goal of virtual desktop management on Kubernetes, while extending the product into a more complete control plane for desktop runtime operations, user governance, and secure in-cluster access.
+ClawManager is a virtual desktop management platform built for Kubernetes. It provides a complete control plane for desktop runtime operations, user governance, and secure in-cluster access.
 
-Compared with ClawReef, ClawManager not only supports the original instance lifecycle and quota model, but also adds a stronger admin console, proxy-based desktop access, runtime image control, cluster resource visibility, and OpenClaw memory/preferences backup and migration capabilities.
+ClawManager combines batch deployment, instance lifecycle management, admin console capabilities, proxy-based desktop access, runtime image control, cluster resource visibility, and OpenClaw memory/preferences backup and migration into one platform.
 
 ClawManager is designed for environments where:
 
@@ -52,7 +52,6 @@ ClawManager is designed for environments where:
 
 In short, ClawManager is:
 
-- the upgraded management plane of ClawReef
 - a centralized operations console for OpenClaw and Linux desktop runtimes
 - a multi-user desktop management platform on Kubernetes
 - a secure access layer for internal desktop services through token-authenticated proxying
@@ -60,6 +59,7 @@ In short, ClawManager is:
 ## ✨ At a Glance
 
 - Multi-tenant desktop instance management
+- Batch deployment of desktop instances across users or runtime profiles
 - User quota control for CPU, memory, storage, GPU, and instance count
 - OpenClaw, Webtop, Ubuntu, Debian, CentOS, and custom runtime support
 - Secure desktop proxy access with token generation and WebSocket forwarding
@@ -67,7 +67,11 @@ In short, ClawManager is:
 - Admin dashboards for users, instances, image cards, and cluster resources
 - Multilingual UI: English, Chinese, Japanese, Korean, and German
 
-> 🧭 From ClawReef to ClawManager: stronger admin control, safer desktop access, and richer runtime operations.
+> 🧭 ClawManager combines admin control, secure desktop access, and runtime operations in one control plane.
+
+<p align="center">
+  <img src="frontend/public/clawmanager_overview.png" alt="ClawManager Overview" width="100%" />
+</p>
 
 ## 📚 Table of Contents
 
@@ -88,9 +92,10 @@ In short, ClawManager is:
 
 ## 🆕 ClawManager New Features
 
-These are the major additions on top of ClawReef:
+These are the major capabilities of ClawManager:
 
 - 🖥 `webtop` runtime support for browser-based desktop access
+- 📦 Batch deployment workflows for large-scale desktop provisioning
 - 🚪 Desktop Portal page for switching between running instances from one place
 - 🔐 Token-based instance access endpoint and reverse proxy routing
 - 🔄 WebSocket forwarding for desktop sessions and status updates
@@ -104,6 +109,7 @@ These are the major additions on top of ClawReef:
 ## 🛠 Key Features
 
 - ⚙️ Instance lifecycle management: create, start, stop, restart, delete, inspect, and force sync
+- 📦 Batch deployment support for large-scale desktop rollout
 - 🧱 Supported runtime types: `openclaw`, `webtop`, `ubuntu`, `debian`, `centos`, `custom`
 - 🔒 Secure desktop access through authenticated proxy endpoints
 - 📡 WebSocket-based real-time status updates
