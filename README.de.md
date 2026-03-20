@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  ClawManager ist die auf ClawReef aufbauende Control Plane zum Betrieb von OpenClaw- und Linux-Desktop-Runtimes auf Kubernetes.
+  Die auf ClawReef aufbauende erweiterte Management-Ebene fuer den Betrieb von OpenClaw und Linux-Desktop-Runtimes im Cluster-Massstab.
 </p>
 
 <p align="center">
-  <strong>Languages:</strong>
+  <strong>Sprachen:</strong>
   <a href="./README.md">English</a> |
   <a href="./README.zh-CN.md">中文</a> |
   <a href="./README.ja.md">日本語</a> |
@@ -17,100 +17,259 @@
   Deutsch
 </p>
 
-## News
+<p align="center">
+  <img src="https://img.shields.io/badge/ClawReef-Upgraded%20to%20ClawManager-e25544?style=for-the-badge" alt="ClawManager Upgrade" />
+  <img src="https://img.shields.io/badge/Go-1.21%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.21+" />
+  <img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" />
+  <img src="https://img.shields.io/badge/Kubernetes-Native-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes Native" />
+  <img src="https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge" alt="MIT License" />
+</p>
 
-- [2026-03-20] README an den aktuellen Implementierungsstand angepasst, einschließlich Portal-Zugriff, Webtop-Runtime, Runtime-Image-Karten, Cluster-Ressourcenübersicht, Passwortänderung sowie OpenClaw Import / Export.
+<p align="center">
+  <img src="https://img.shields.io/badge/OpenClaw-Desktop-f97316?style=flat-square&logo=linux&logoColor=white" alt="OpenClaw Desktop" />
+  <img src="https://img.shields.io/badge/Webtop-Browser%20Desktop-0f766e?style=flat-square&logo=firefoxbrowser&logoColor=white" alt="Webtop" />
+  <img src="https://img.shields.io/badge/Proxy-Secure%20Access-7c3aed?style=flat-square&logo=nginxproxymanager&logoColor=white" alt="Secure Proxy" />
+  <img src="https://img.shields.io/badge/WebSocket-Realtime-2563eb?style=flat-square&logo=socketdotio&logoColor=white" alt="WebSocket" />
+  <img src="https://img.shields.io/badge/i18n-5%20Languages-db2777?style=flat-square&logo=googletranslate&logoColor=white" alt="5 Languages" />
+</p>
 
-## Überblick
+## 🚀 News
 
-ClawManager übernimmt das ursprüngliche Ziel von ClawReef, virtuelle Desktops auf Kubernetes zu verwalten, und erweitert es zu einer umfassenderen Betriebsoberfläche für Desktop-Runtimes.
+- [03/20/2026] **ClawManager README-Aktualisierung** - Die Projektbeschreibung wurde auf Basis des ClawReef-Release-README neu strukturiert und um ClawManager-spezifische Funktionen erweitert, darunter Webtop-Unterstuetzung, Desktop-Portal-Zugriff, Runtime-Image-Einstellungen, OpenClaw-Speicher-/Praeferenz-Markdown-Backup und Migration, Cluster-Ressourcenuebersicht sowie mehrsprachige Dokumentation.
 
-Aktuell umgesetzt sind unter anderem:
+## 👀 Overview
 
-- Multi-User-Verwaltung von Desktop-Instanzen
-- getrennte Oberflächen für Admins und Benutzer
-- Quoten für Instanzanzahl, CPU, Speicher, Storage und GPU
-- sicherer Desktop-Zugriff über Backend-Proxy
-- eingebetteter Zugriff in der Instanzdetailseite und über `/portal`
-- OpenClaw-Workspace Export / Import
-- zentrale Runtime-Image-Overrides
-- Cluster-Ressourcenübersicht für Administratoren
-- mehrsprachige UI in Englisch, Chinesisch, Japanisch, Koreanisch und Deutsch
+ClawManager ist die weiterentwickelte Version von ClawReef. Das urspruengliche Ziel der Verwaltung virtueller Desktops auf Kubernetes bleibt erhalten, waehrend das Produkt zu einer vollstaendigeren Kontroll- und Betriebsplattform fuer Desktop-Runtimes, Benutzer-Governance und sicheren In-Cluster-Zugriff ausgebaut wurde.
 
-## Current Capabilities
+Im Vergleich zu ClawReef unterstuetzt ClawManager nicht nur das urspruengliche Instanz-Lifecycle- und Quota-Modell, sondern fuegt auch eine staerkere Admin-Konsole, proxybasierten Desktop-Zugriff, Runtime-Image-Steuerung, Cluster-Ressourcen-Transparenz sowie Backup- und Migrationsfunktionen fuer OpenClaw-Speicher und Praeferenzen hinzu.
 
-### User Side
+ClawManager ist fuer Umgebungen gedacht, in denen:
 
-- Registrierung, Login, Token-Refresh, Logout und Passwortänderung
-- Instanzerstellung mit Quotenprüfung
-- Unterstützte Runtimes: `openclaw`, `webtop`, `ubuntu`, `debian`, `centos`, `custom`
-- Starten, Stoppen, Neustarten, Löschen und Anzeigen von Instanzen
-- Zugriff auf laufende Desktops über:
-  - die Instanzdetailseite
-  - das `/portal`
-- Erzeugung kurzlebiger Zugriffstoken
-- Export / Import von Workspaces für `openclaw`-Instanzen
+- virtuelle Desktop-Instanzen fuer mehrere Benutzer erstellt und verwaltet werden muessen
+- Administratoren Quotas, Images und Instanzen zentral steuern muessen
+- Desktop-Dienste innerhalb von Kubernetes bleiben und ueber authentifizierte Proxys bereitgestellt werden sollen
+- Betreiber eine einheitliche Sicht auf Instanzzustand, Cluster-Kapazitaet und Runtime-Status benoetigen
 
-### Admin Side
+Kurz gesagt ist ClawManager:
 
-- Admin-Dashboard
-- Benutzer anlegen, löschen, Rollen ändern, Quoten ändern
-- CSV-Benutzerimport
-- globale Instanzverwaltung über alle Benutzer hinweg
-- Verwaltung von Runtime-Image-Karten
-- Cluster-Ressourcenübersicht
-- Passwortänderung im Einstellungsbereich
+- die aufgewertete Management-Ebene von ClawReef
+- eine zentrale Betriebskonsole fuer OpenClaw- und Linux-Desktop-Runtimes
+- eine Multi-User-Desktop-Management-Plattform auf Kubernetes
+- eine sichere Zugriffsschicht fuer interne Desktop-Dienste ueber token-authentifizierte Proxys
 
-### Backend / Platform
+## ✨ At a Glance
 
-- `/api/v1` REST API
-- JWT-Authentifizierung
-- WebSocket-Endpunkt
-- Kubernetes-basierte Instanz-Lifecycle-Verwaltung
-- HTTP / WebSocket Proxy für Desktop-Traffic
-- Status-Synchronisationsdienst für Instanzen
+- Multi-Tenant-Desktop-Instanzverwaltung
+- Benutzer-Quota-Kontrolle fuer CPU, Speicher, Storage, GPU und Instanzanzahl
+- Unterstuetzung fuer OpenClaw, Webtop, Ubuntu, Debian, CentOS und benutzerdefinierte Runtimes
+- Sicherer Desktop-Proxy-Zugriff mit Token-Generierung und WebSocket-Weiterleitung
+- Backup und Migration von OpenClaw-Speicher-, Praeferenz- und Markdown-Konfigurationsdaten
+- Admin-Dashboards fuer Benutzer, Instanzen, Image-Karten und Cluster-Ressourcen
+- Mehrsprachige UI: Englisch, Chinesisch, Japanisch, Koreanisch und Deutsch
 
-## Architektur
+> 🧭 Von ClawReef zu ClawManager: staerkere Admin-Kontrolle, sichererer Desktop-Zugriff und umfangreichere Runtime-Operationen.
+
+## 📚 Table of Contents
+
+- [News](#news)
+- [Overview](#overview)
+- [ClawManager New Features](#clawmanager-new-features)
+- [Key Features](#key-features)
+- [Typical Workflow](#typical-workflow)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Tech Stack](#tech-stack)
+- [Kubernetes Prerequisites](#kubernetes-prerequisites)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Documentation](#documentation)
+- [License](#license)
+
+## 🆕 ClawManager New Features
+
+Dies sind die wichtigsten Ergaenzungen gegenueber ClawReef:
+
+- 🖥 `webtop`-Runtime-Unterstuetzung fuer browserbasierten Desktop-Zugriff
+- 🚪 Desktop-Portal-Seite zum Wechseln zwischen laufenden Instanzen an einem Ort
+- 🔐 Tokenbasierter Instanzzugriff und Reverse-Proxy-Routing
+- 🔄 WebSocket-Weiterleitung fuer Desktop-Sitzungen und Statusaktualisierungen
+- 🧠 Backup-/Import-APIs fuer OpenClaw-Speicher-, Praeferenz- und Markdown-Konfigurationsdaten
+- 🧩 Runtime-Image-Kartenverwaltung fuer jeden unterstuetzten Instanztyp
+- 📊 Cluster-Ressourcenuebersicht fuer Nodes, CPU, Speicher und Storage
+- 👨‍💼 Globale Admin-Instanzverwaltung mit benutzeruebergreifender Filterung und Steuerung
+- 📥 CSV-basierter Benutzerimport mit Generierung von Standardpasswoertern
+- 🌍 Internationalisiertes Frontend mit 5 Sprachen
+
+## 🛠 Key Features
+
+- ⚙️ Instanz-Lifecycle-Management: erstellen, starten, stoppen, neu starten, loeschen, anzeigen und erzwungen synchronisieren
+- 🧱 Unterstuetzte Runtime-Typen: `openclaw`, `webtop`, `ubuntu`, `debian`, `centos`, `custom`
+- 🔒 Sicherer Desktop-Zugriff ueber authentifizierte Proxy-Endpunkte
+- 📡 WebSocket-basierte Echtzeit-Statusupdates
+- 📝 Archiv-Backup/-Import fuer OpenClaw-Speicher-, Praeferenz- und Markdown-Konfigurationsdaten
+- 📏 Benutzerbezogene Quota-Verwaltung fuer Instanzen, CPU, Speicher, Storage und GPU
+- 🖼 Verwaltung von Runtime-Image-Overrides ueber das Admin-Panel
+- 🛰 Admin-Dashboard fuer Cluster-Ressourcenuebersicht und Instanzgesundheit
+- 👥 CSV-basierter Massenimport von Benutzern und zentrale Quota-Zuweisung
+- 🌐 Mehrsprachige UI sowie rollenbasierte Admin-/Benutzeransichten
+
+## 🔄 Typical Workflow
+
+1. 👨‍💼 Ein Administrator meldet sich an und konfiguriert Benutzer, Quotas und Runtime-Image-Einstellungen.
+2. 🖥 Ein Benutzer erstellt eine Desktop-Instanz wie OpenClaw, Webtop oder Ubuntu.
+3. ☸️ ClawManager erstellt die Kubernetes-Ressourcen und haelt den Runtime-Status synchron.
+4. 🔐 Der Benutzer greift ueber das Portal oder den tokenbasierten Proxy-Endpunkt auf den Desktop zu.
+5. 📊 Administratoren ueberwachen Instanzgesundheit und Cluster-Ressourcen ueber das Admin-Dashboard.
+
+## 🏗 Architecture
 
 ```text
 Browser
-  -> React frontend
-  -> Go/Gin backend
+  -> ClawManager Frontend (React + Vite)
+  -> ClawManager Backend (Go + Gin)
   -> MySQL
   -> Kubernetes API
-  -> Namespace / Pod / PVC / Service
-  -> OpenClaw / Webtop / Linux desktop runtime
+  -> Pod / PVC / Service
+  -> OpenClaw / Webtop / Linux Desktop Runtime
 ```
 
-Hinweise:
+### High-Level Design
 
-- Desktop-Traffic wird über authentifizierte Backend-Proxy-Routen bereitgestellt.
-- Cluster-Sichtbarkeit und Lifecycle-Funktionen benötigen Kubernetes-Zugriff vom Backend.
-- Einige Paketnamen enthalten historisch noch `clawreef`, der Produktname ist jedoch ClawManager.
+- Frontend: React 19 + TypeScript + Tailwind CSS
+- Backend: Go + Gin + upper/db + MySQL
+- Runtime: Kubernetes
+- Zugriffsschicht: authentifizierter Reverse Proxy mit WebSocket-Weiterleitung
+- Datenschicht: MySQL fuer Geschaeftsdaten, PVC fuer persistente Instanzdaten
 
-## Quick Start
+## 🗂 Project Structure
 
-### Voraussetzungen
+```text
+ClawManager/
+├── backend/            # Go-Backend-API
+├── frontend/           # React-Frontend
+├── deployments/        # Container- und Kubernetes-Deployment-Dateien
+├── dev_docs/           # Design- und Implementierungsdokumente
+├── scripts/            # Hilfsskripte
+├── TASK_BREAKDOWN.md   # Detaillierte Aufgabenaufschluesselung
+└── dev_progress.md     # Entwicklungsfortschrittsprotokoll
+```
 
-- MySQL 8.0+
-- erreichbarer Kubernetes-Cluster
-- nutzbares `kubectl`
-- Node.js 20+
+## 💻 Tech Stack
+
+### Backend
+
 - Go 1.21+
+- Gin
+- upper/db
+- MySQL 8.0+
+- JWT-Authentifizierung
+
+### Frontend
+
+- React 19
+- TypeScript 5.9
+- Vite 7
+- Tailwind CSS 4
+- React Router
+
+### Infrastructure
+
+- Kubernetes
+- Docker
+- Nginx
+
+## ☸️ Kubernetes Prerequisites
+
+ClawManager ist ein Kubernetes-first-Projekt. Verwaltete Nodes muessen einem Kubernetes-Cluster beitreten, bevor ClawManager Instanzen planen, Ressourcen pruefen oder zentralisierte Operationen bereitstellen kann.
+
+Vor der Installation von ClawManager sollte eine funktionierende Kubernetes-Umgebung vorhanden sein, und `kubectl` muss Zugriff auf den Cluster haben:
 
 ```bash
 kubectl get nodes
 ```
 
+### Linux-Setup-Beispiele
+
+Mit `k3s`:
+
+```bash
+curl -sfL https://get.k3s.io | sh -
+sudo kubectl get nodes
+```
+
+Mit `microk8s`:
+
+```bash
+sudo snap install microk8s --classic
+sudo microk8s status --wait-ready
+sudo microk8s kubectl get nodes
+```
+
+### Grundlegende Kubernetes-Befehle
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+kubectl get pvc -A
+kubectl cluster-info
+```
+
+### Mindestempfehlung
+
+- 1 Kubernetes-Node
+- 4 CPU
+- 8 GB RAM
+- 20+ GB freier Speicher
+
+Wenn mehrere Desktop-Instanzen gleichzeitig laufen sollen, sollten mehr CPU, RAM und Storage eingeplant werden.
+
+## 📦 Installation
+
+Vor der Installation sicherstellen, dass:
+
+- MySQL verfuegbar ist
+- Kubernetes verfuegbar ist
+- `kubectl get nodes` funktioniert
+
+MySQL starten und Datenbankmigrationen ausfuehren:
+
+```bash
+cd backend
+make docker-up
+make migrate
+```
+
+Abhaengigkeiten installieren:
+
+```bash
+cd frontend
+npm install
+
+cd ../backend
+go mod tidy
+```
+
+### Kubernetes-Deployment-Beispiel
+
+Das mitgelieferte Manifest direkt anwenden:
+
+```bash
+kubectl apply -f deployments/k8s/clawmanager.yaml
+kubectl get pods -A
+kubectl get svc -A
+```
+
+## ⚡ Quick Start
+
 ### Backend
 
 ```bash
 cd backend
-go mod tidy
 make run
 ```
 
-Standardadresse in der Entwicklung:
+Standard-Backend-Adresse:
 
 - `http://localhost:9001`
 
@@ -118,50 +277,77 @@ Standardadresse in der Entwicklung:
 
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-Standardadresse des Frontends:
+Standard-Frontend-Adresse:
 
 - `http://localhost:9002`
 
-### Datenbankinitialisierung
+### Default Accounts
 
-```bash
-cd backend
-go run cmd/initdb/main.go
-```
+- Standard-Admin-Konto: `admin / admin123`
+- Standardpasswort fuer importierte Admin-Benutzer: `admin123`
+- Standardpasswort fuer importierte regulaere Benutzer: `user123`
 
-Standard-Admin-Konto:
+### First Login
 
-- `admin / admin123`
+1. 👨‍💼 Als Administrator anmelden.
+2. 👥 Benutzer erstellen oder importieren und Quotas zuweisen.
+3. 🧩 Optional Runtime-Image-Karten in den Systemeinstellungen konfigurieren.
+4. 🖥 Als Benutzer anmelden und eine Instanz erstellen.
+5. 🔗 Ueber Portal View oder Desktop Access auf den Desktop zugreifen.
 
-## CSV Import
+## ⚙️ Configuration
 
-Beispiel:
+ClawManager folgt einem klaren Sicherheitsmodell:
+
+- Instanz-Services verwenden das interne Kubernetes-Netzwerk
+- Desktop-Zugriff laeuft ueber den authentifizierten ClawManager-Backend-Proxy
+- backend sollte idealerweise im Cluster betrieben werden
+- Runtime-Images koennen zentral ueber die Systemeinstellungen verwaltet werden
+- alle verwalteten Nodes sollten zum selben Kubernetes-Cluster gehoeren
+
+Wichtige Backend-Umgebungsvariablen:
+
+- `SERVER_ADDRESS`
+- `SERVER_MODE`
+- `DB_HOST`
+- `DB_PORT`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+- `JWT_SECRET`
+
+Im Frontend-Entwicklungsmodus wird `/api` ueber Vite an das Backend weitergeleitet.
+
+### CSV Import Template
 
 ```csv
-Username,Email,Role,Password,Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count
+Username,Email,Role,Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count (optional)
 ```
 
-Aktuelle Regeln in der Implementierung:
+Hinweise:
 
-- `Username`, `Role`, `Max Instances`, `Max CPU Cores`, `Max Memory (GB)` und `Max Storage (GB)` sind Pflichtfelder
-- `Email`, `Password` und `Max GPU Count` sind optional
-- falls `Password` leer ist:
-  - Admin erhält `admin123`
-  - Benutzer erhält `user123`
+- `Email` ist optional
+- `Max GPU Count (optional)` ist optional
+- alle anderen Spalten sind erforderlich
+- Quota-Werte sollten zur Kapazitaetsplanung des Clusters passen
 
-## Dokumentation
+## 📘 Documentation
 
-- [README.md](./README.md)
-- [README.zh-CN.md](./README.zh-CN.md)
-- [README.ja.md](./README.ja.md)
-- [README.ko.md](./README.ko.md)
 - [TASK_BREAKDOWN.md](./TASK_BREAKDOWN.md)
 - [dev_progress.md](./dev_progress.md)
+- [dev_docs/README_DOCS.md](./dev_docs/README_DOCS.md)
+- [dev_docs/ARCHITECTURE_SIMPLE.md](./dev_docs/ARCHITECTURE_SIMPLE.md)
+- [dev_docs/MONITORING_DASHBOARD.md](./dev_docs/MONITORING_DASHBOARD.md)
+- [backend/README.md](./backend/README.md)
+- [frontend/README.md](./frontend/README.md)
 
-## License
+## 📄 License
 
-MIT
+Dieses Projekt ist unter der MIT License veroeffentlicht.
+
+## ❤️ Open Source
+
+Issues und Pull Requests sind willkommen, einschliesslich Verbesserungen an Funktionen, Dokumentation und Tests.

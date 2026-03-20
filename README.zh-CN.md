@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  ClawManager 是在 ClawReef 基础上升级而来的控制平面，用于在 Kubernetes 上统一管理 OpenClaw 与各类 Linux 桌面运行时。
+  ClawReef 升级而来的管理平面，用于在集群规模下统一运营 OpenClaw 与 Linux 桌面运行时。
 </p>
 
 <p align="center">
@@ -18,118 +18,146 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/ClawReef-Upgraded%20to%20ClawManager-e25544?style=for-the-badge" alt="ClawManager Upgrade" />
   <img src="https://img.shields.io/badge/Go-1.21%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.21+" />
   <img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" />
   <img src="https://img.shields.io/badge/Kubernetes-Native-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes Native" />
-  <img src="https://img.shields.io/badge/MySQL-8.0%2B-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL 8.0+" />
+  <img src="https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge" alt="MIT License" />
 </p>
 
-## 更新说明
+<p align="center">
+  <img src="https://img.shields.io/badge/OpenClaw-Desktop-f97316?style=flat-square&logo=linux&logoColor=white" alt="OpenClaw Desktop" />
+  <img src="https://img.shields.io/badge/Webtop-Browser%20Desktop-0f766e?style=flat-square&logo=firefoxbrowser&logoColor=white" alt="Webtop" />
+  <img src="https://img.shields.io/badge/Proxy-Secure%20Access-7c3aed?style=flat-square&logo=nginxproxymanager&logoColor=white" alt="Secure Proxy" />
+  <img src="https://img.shields.io/badge/WebSocket-Realtime-2563eb?style=flat-square&logo=socketdotio&logoColor=white" alt="WebSocket" />
+  <img src="https://img.shields.io/badge/i18n-5%20Languages-db2777?style=flat-square&logo=googletranslate&logoColor=white" alt="5 Languages" />
+</p>
 
-- [2026-03-20] README 已按当前代码实现刷新，补充了 Portal 桌面访问、Webtop 运行时、运行时镜像卡片、集群资源概览、修改密码流程，以及 OpenClaw 导入导出等最新功能。
+## 🚀 News
 
-## 项目概览
+- [03/20/2026] **ClawManager README 更新** - 基于 ClawReef 发布版 README 重新组织项目介绍，并补充 ClawManager 的新增能力，包括 Webtop 支持、桌面 Portal 访问、运行时镜像设置、OpenClaw 记忆/偏好 Markdown 备份迁移、集群资源总览和多语言文档。
 
-ClawManager 延续了 ClawReef 在 Kubernetes 上管理虚拟桌面的核心目标，并进一步扩展为一个更完整的桌面运行时运维平台，覆盖用户治理、实例生命周期管理、安全访问和集群资源可视化。
+## 👀 Overview
 
-当前代码已经实现的能力包括：
+ClawManager 是 ClawReef 的升级版本。它延续了在 Kubernetes 上管理虚拟桌面的原始目标，同时把产品扩展为一个更完整的桌面运行时运营平面，覆盖运行控制、用户治理和安全的集群内访问。
 
-- 多用户桌面实例管理
-- 管理员 / 普通用户双视图控制台
-- 实例数、CPU、内存、存储、GPU 配额控制
-- 基于后端代理的桌面安全访问
-- 在实例详情页与 Portal 页面内嵌桌面访问
-- OpenClaw 工作区导出与导入
-- 支持运行时镜像覆盖配置
-- 管理员集群资源总览
-- 英文、中文、日文、韩文、德文多语言界面
+相较于 ClawReef，ClawManager 不仅保留了原有的实例生命周期和 quota 模型，还新增了更强的管理员控制台、基于代理的桌面访问、运行时镜像控制、集群资源可视化，以及 OpenClaw 记忆/偏好备份迁移能力。
 
-## 当前已实现功能
+ClawManager 适用于这些环境：
 
-### 用户侧
+- 需要为多个用户创建和管理虚拟桌面实例
+- 管理员需要集中治理 quota、镜像和实例
+- 桌面服务需要保留在 Kubernetes 内部，并通过鉴权代理对外访问
+- 运维需要统一查看实例健康、集群容量和运行状态
 
-- 注册、登录、刷新令牌、退出登录、修改密码
-- 创建桌面实例，并在创建前做配额占用校验
-- 支持实例类型：`openclaw`、`webtop`、`ubuntu`、`debian`、`centos`、`custom`
-- 启动、停止、重启、删除、查看实例
-- 从以下入口访问正在运行的桌面：
-  - 实例详情页
-  - `/portal` 统一门户页
-- 为实例生成短时效访问令牌
-- 对 `openclaw` 实例执行工作区导出 / 导入
+简而言之，ClawManager 是：
 
-### 管理员侧
+- ClawReef 的升级管理平面
+- OpenClaw 与 Linux 桌面运行时的集中运维控制台
+- Kubernetes 上的多用户桌面管理平台
+- 基于令牌鉴权代理的内部桌面安全访问层
 
-- 管理员仪表盘：
-  - 用户总数、实例总数、运行中实例数、已分配存储
-  - 集群节点就绪情况
-  - CPU / 内存 / 磁盘的 requested 与 allocatable 总览
-  - 按节点展示资源明细
-- 用户管理：
-  - 创建用户
-  - 删除用户
-  - 修改角色
-  - 修改配额
-  - CSV 批量导入并生成默认密码
-- 跨用户实例管理
-- 支持各运行时类型的镜像卡片配置
-- 集群资源概览接口与前端页面
-- 管理设置页中的修改密码入口
+## ✨ At a Glance
 
-### 平台能力
+- 多租户桌面实例管理
+- 针对 CPU、内存、存储、GPU 和实例数量的用户 quota 控制
+- 支持 OpenClaw、Webtop、Ubuntu、Debian、CentOS 和自定义运行时
+- 通过令牌生成和 WebSocket 转发实现安全桌面代理访问
+- OpenClaw 记忆、偏好和 Markdown 配置数据的备份与迁移
+- 管理员后台提供用户、实例、镜像卡片和集群资源视图
+- 多语言界面：英文、中文、日文、韩文、德文
 
-- `/api/v1` REST API
-- JWT 鉴权
-- WebSocket 实时连接入口
-- 基于 Kubernetes 的实例生命周期管理
-- 桌面 HTTP / WebSocket 代理转发
-- 定时实例状态同步服务
+> 🧭 从 ClawReef 到 ClawManager：更强的管理员控制、更安全的桌面访问，以及更丰富的运行时运维能力。
 
-## 架构
+## 📚 Table of Contents
+
+- [News](#news)
+- [Overview](#overview)
+- [ClawManager New Features](#clawmanager-new-features)
+- [Key Features](#key-features)
+- [Typical Workflow](#typical-workflow)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Tech Stack](#tech-stack)
+- [Kubernetes Prerequisites](#kubernetes-prerequisites)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Documentation](#documentation)
+- [License](#license)
+
+## 🆕 ClawManager New Features
+
+这些是 ClawManager 相比 ClawReef 的主要新增点：
+
+- 🖥 `webtop` 运行时支持，用于浏览器内桌面访问
+- 🚪 Desktop Portal 页面，可在一个入口中切换运行中的实例
+- 🔐 基于令牌的实例访问端点和反向代理路由
+- 🔄 桌面会话和状态更新的 WebSocket 转发
+- 🧠 OpenClaw 记忆、偏好和 Markdown 配置数据的备份/导入 API
+- 🧩 面向各实例类型的运行时镜像卡片管理
+- 📊 节点、CPU、内存和存储的集群资源总览
+- 👨‍💼 支持跨用户筛选与控制的全局管理员实例管理
+- 📥 带默认密码生成的 CSV 用户导入
+- 🌍 提供 5 种语言的国际化前端
+
+## 🛠 Key Features
+
+- ⚙️ 实例生命周期管理：创建、启动、停止、重启、删除、查看和强制同步
+- 🧱 支持运行时类型：`openclaw`、`webtop`、`ubuntu`、`debian`、`centos`、`custom`
+- 🔒 通过鉴权代理端点提供安全桌面访问
+- 📡 基于 WebSocket 的实时状态更新
+- 📝 OpenClaw 记忆、偏好和 Markdown 配置数据归档备份/导入
+- 📏 用户级 quota 管理：实例数、CPU、内存、存储和 GPU
+- 🖼 管理后台中的运行时镜像覆盖管理
+- 🛰 管理员仪表盘提供集群资源总览和实例健康视图
+- 👥 CSV 批量用户导入和集中 quota 分配
+- 🌐 多语言 UI 与管理员/普通用户双角色视图
+
+## 🔄 Typical Workflow
+
+1. 👨‍💼 管理员登录并配置用户、quota 和运行时镜像设置。
+2. 🖥 用户创建一个桌面实例，例如 OpenClaw、Webtop 或 Ubuntu。
+3. ☸️ ClawManager 创建对应的 Kubernetes 资源并持续同步运行状态。
+4. 🔐 用户通过 Portal 或基于令牌的代理端点访问桌面。
+5. 📊 管理员在后台监控实例健康和集群资源。
+
+## 🏗 Architecture
 
 ```text
-浏览器
-  -> React 前端
-  -> Go/Gin 后端
+Browser
+  -> ClawManager Frontend (React + Vite)
+  -> ClawManager Backend (Go + Gin)
   -> MySQL
   -> Kubernetes API
-  -> Namespace / Pod / PVC / Service
-  -> OpenClaw / Webtop / Linux 桌面运行时
+  -> Pod / PVC / Service
+  -> OpenClaw / Webtop / Linux Desktop Runtime
 ```
 
-说明：
+### High-Level Design
 
-- 桌面访问统一通过后端代理路由暴露。
-- 集群可视化与实例生命周期能力依赖后端可访问 Kubernetes。
-- 代码里仍保留部分历史命名 `clawreef`，但产品名称已经统一为 ClawManager。
+- 前端：React 19 + TypeScript + Tailwind CSS
+- 后端：Go + Gin + upper/db + MySQL
+- 运行环境：Kubernetes
+- 访问层：带 WebSocket 转发的鉴权反向代理
+- 数据层：MySQL 存储业务数据，PVC 存储实例持久化数据
 
-## 目录结构
+## 🗂 Project Structure
 
 ```text
 ClawManager/
-├── backend/        # Go 后端 API、服务、数据库迁移
-├── frontend/       # React 前端
-├── deployments/    # 根目录 Kubernetes 部署清单
-├── dev_docs/       # 设计与实现文档
-├── scripts/        # 辅助脚本
-├── README.md
-├── README.zh-CN.md
-├── TASK_BREAKDOWN.md
-└── dev_progress.md
+├── backend/            # Go 后端 API
+├── frontend/           # React 前端
+├── deployments/        # 容器和 Kubernetes 部署文件
+├── dev_docs/           # 设计与实现文档
+├── scripts/            # 辅助脚本
+├── TASK_BREAKDOWN.md   # 详细任务拆解
+└── dev_progress.md     # 开发进展记录
 ```
 
-## 技术栈
+## 💻 Tech Stack
 
-### 前端
-
-- React 19
-- TypeScript 5.9
-- Vite 8
-- React Router 7
-- Axios
-- Zustand
-
-### 后端
+### Backend
 
 - Go 1.21+
 - Gin
@@ -137,76 +165,118 @@ ClawManager/
 - MySQL 8.0+
 - JWT 鉴权
 
-### 基础设施
+### Frontend
+
+- React 19
+- TypeScript 5.9
+- Vite 7
+- Tailwind CSS 4
+- React Router
+
+### Infrastructure
 
 - Kubernetes
 - Docker
-- WebSocket 代理
+- Nginx
 
-## 主要接口
+## ☸️ Kubernetes Prerequisites
 
-当前已经实现的关键接口：
+ClawManager 是一个 Kubernetes-first 项目。只有当被管理节点加入 Kubernetes 集群后，ClawManager 才能进行实例调度、资源检查和统一运维。
 
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/change-password`
-- `GET /api/v1/auth/me`
-- `GET /api/v1/users`
-- `POST /api/v1/users/import`
-- `PUT /api/v1/users/:id/quota`
-- `GET /api/v1/instances`
-- `POST /api/v1/instances`
-- `POST /api/v1/instances/:id/start`
-- `POST /api/v1/instances/:id/stop`
-- `POST /api/v1/instances/:id/restart`
-- `POST /api/v1/instances/:id/access`
-- `POST /api/v1/instances/:id/sync`
-- `GET /api/v1/instances/:id/openclaw/export`
-- `POST /api/v1/instances/:id/openclaw/import`
-- `GET /api/v1/system-settings/images`
-- `PUT /api/v1/system-settings/images`
-- `GET /api/v1/system-settings/cluster-resources`
-- `GET /api/v1/ws`
-
-## 快速开始
-
-### 前置要求
-
-- MySQL 8.0+
-- 可访问的 Kubernetes 集群
-- 已配置可用的 `kubectl`
-- Node.js 20+
-- Go 1.21+
-
-先确认 Kubernetes 连通性：
+在安装 ClawManager 之前，请准备好可用的 Kubernetes 环境，并确认 `kubectl` 可以访问集群：
 
 ```bash
 kubectl get nodes
 ```
 
-### 后端启动
+### Linux 安装示例
 
-本地开发默认配置位于 `backend/configs/dev.yaml`，其中默认值为：
+使用 `k3s`：
 
-- 服务地址：`http://localhost:9001`
-- 数据库主机：`localhost`
-- 数据库端口：`13306`
-- 数据库名：`clawreef`
+```bash
+curl -sfL https://get.k3s.io | sh -
+sudo kubectl get nodes
+```
 
-启动后端：
+使用 `microk8s`：
+
+```bash
+sudo snap install microk8s --classic
+sudo microk8s status --wait-ready
+sudo microk8s kubectl get nodes
+```
+
+### Kubernetes 基础命令
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+kubectl get pvc -A
+kubectl cluster-info
+```
+
+### 最低建议配置
+
+- 1 个 Kubernetes 节点
+- 4 CPU
+- 8 GB RAM
+- 20+ GB 可用磁盘
+
+如果你计划同时运行多个桌面实例，请分配更多 CPU、内存和存储。
+
+## 📦 Installation
+
+安装前请确认：
+
+- MySQL 可用
+- Kubernetes 可用
+- `kubectl get nodes` 正常工作
+
+启动 MySQL 并执行数据库迁移：
 
 ```bash
 cd backend
-go mod tidy
-make run
+make docker-up
+make migrate
 ```
 
-### 前端启动
+安装依赖：
 
 ```bash
 cd frontend
 npm install
+
+cd ../backend
+go mod tidy
+```
+
+### Kubernetes 部署示例
+
+使用仓库内置清单直接部署：
+
+```bash
+kubectl apply -f deployments/k8s/clawmanager.yaml
+kubectl get pods -A
+kubectl get svc -A
+```
+
+## ⚡ Quick Start
+
+### Backend
+
+```bash
+cd backend
+make run
+```
+
+默认后端地址：
+
+- `http://localhost:9001`
+
+### Frontend
+
+```bash
+cd frontend
 npm run dev
 ```
 
@@ -214,56 +284,31 @@ npm run dev
 
 - `http://localhost:9002`
 
-### 数据库初始化
+### Default Accounts
 
-如果使用仓库内的初始化工具：
+- 默认管理员账号：`admin / admin123`
+- 导入的管理员用户默认密码：`admin123`
+- 导入的普通用户默认密码：`user123`
 
-```bash
-cd backend
-go run cmd/initdb/main.go
-```
+### First Login
 
-初始化工具会创建默认管理员账号：
+1. 👨‍💼 使用管理员账号登录。
+2. 👥 创建或导入用户，并分配 quota。
+3. 🧩 可选地在系统设置中配置运行时镜像卡片。
+4. 🖥 使用普通用户登录并创建实例。
+5. 🔗 通过 Portal View 或 Desktop Access 访问桌面。
 
-- `admin / admin123`
+## ⚙️ Configuration
 
-### Docker Compose
+ClawManager 遵循清晰的安全模型：
 
-仓库中也提供了 Docker Compose 配置，位于 `backend/deployments/docker/`：
+- 实例服务运行在 Kubernetes 内部网络中
+- 桌面访问统一经过 ClawManager 后端鉴权代理
+- backend 最佳部署位置是在集群内部
+- 运行时镜像可通过系统设置集中管理
+- 被管理节点应全部属于同一个 Kubernetes 集群
 
-```bash
-cd backend
-make docker-up
-```
-
-## 首次使用建议流程
-
-1. 使用 `admin` 账号登录。
-2. 手动创建用户，或通过 CSV 批量导入用户。
-3. 为用户分配实例数、CPU、内存、存储、GPU 配额。
-4. 视需要在管理设置中配置运行时镜像卡片。
-5. 使用普通用户登录并创建实例。
-6. 通过实例详情页或 `/portal` 进入桌面。
-
-## CSV 导入说明
-
-用户导入支持类似下面的表头：
-
-```csv
-Username,Email,Role,Password,Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count
-```
-
-当前代码中的规则：
-
-- `Username`、`Role`、`Max Instances`、`Max CPU Cores`、`Max Memory (GB)`、`Max Storage (GB)` 为必填
-- `Email`、`Password`、`Max GPU Count` 为选填
-- 当 `Password` 为空时，后端会按角色生成默认密码：
-  - 导入管理员：`admin123`
-  - 导入普通用户：`user123`
-
-## 配置说明
-
-后端常用环境变量：
+常用后端环境变量：
 
 - `SERVER_ADDRESS`
 - `SERVER_MODE`
@@ -274,21 +319,35 @@ Username,Email,Role,Password,Max Instances,Max CPU Cores,Max Memory (GB),Max Sto
 - `DB_NAME`
 - `JWT_SECRET`
 
-补充说明：
+前端开发模式会通过 Vite 将 `/api` 代理到后端。
 
-- 前端开发环境默认访问 `9001` 端口后端
-- 桌面访问通过 `/api/v1/instances/:id/proxy` 代理
-- OpenClaw 导入导出仅适用于运行中的 `openclaw` 实例
-- 集群资源总览仅管理员可访问
+### CSV Import Template
 
-## 相关文档
+```csv
+Username,Email,Role,Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count (optional)
+```
+
+说明：
+
+- `Email` 是可选项
+- `Max GPU Count (optional)` 是可选项
+- 其他列都是必填
+- quota 数值应与你的集群容量规划保持一致
+
+## 📘 Documentation
 
 - [TASK_BREAKDOWN.md](./TASK_BREAKDOWN.md)
 - [dev_progress.md](./dev_progress.md)
-- [backend/README.md](./backend/README.md)
+- [dev_docs/README_DOCS.md](./dev_docs/README_DOCS.md)
 - [dev_docs/ARCHITECTURE_SIMPLE.md](./dev_docs/ARCHITECTURE_SIMPLE.md)
 - [dev_docs/MONITORING_DASHBOARD.md](./dev_docs/MONITORING_DASHBOARD.md)
+- [backend/README.md](./backend/README.md)
+- [frontend/README.md](./frontend/README.md)
 
-## License
+## 📄 License
 
-MIT
+本项目基于 MIT License 发布。
+
+## ❤️ Open Source
+
+欢迎提交 issue 和 pull request，包括功能、文档和测试方面的改进。
