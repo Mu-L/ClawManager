@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  ClawManager is the upgraded control plane built on top of ClawReef for operating OpenClaw and Linux desktop runtimes on Kubernetes.
+  The upgraded management plane built on top of ClawReef for operating OpenClaw and Linux desktop runtimes at cluster scale.
 </p>
 
 <p align="center">
@@ -18,116 +18,144 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/ClawReef-Upgraded%20to%20ClawManager-e25544?style=for-the-badge" alt="ClawManager Upgrade" />
   <img src="https://img.shields.io/badge/Go-1.21%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.21+" />
   <img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" />
   <img src="https://img.shields.io/badge/Kubernetes-Native-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes Native" />
-  <img src="https://img.shields.io/badge/MySQL-8.0%2B-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL 8.0+" />
+  <img src="https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge" alt="MIT License" />
 </p>
 
-## News
+<p align="center">
+  <img src="https://img.shields.io/badge/OpenClaw-Desktop-f97316?style=flat-square&logo=linux&logoColor=white" alt="OpenClaw Desktop" />
+  <img src="https://img.shields.io/badge/Webtop-Browser%20Desktop-0f766e?style=flat-square&logo=firefoxbrowser&logoColor=white" alt="Webtop" />
+  <img src="https://img.shields.io/badge/Proxy-Secure%20Access-7c3aed?style=flat-square&logo=nginxproxymanager&logoColor=white" alt="Secure Proxy" />
+  <img src="https://img.shields.io/badge/WebSocket-Realtime-2563eb?style=flat-square&logo=socketdotio&logoColor=white" alt="WebSocket" />
+  <img src="https://img.shields.io/badge/i18n-5%20Languages-db2777?style=flat-square&logo=googletranslate&logoColor=white" alt="5 Languages" />
+</p>
 
-- [2026-03-20] README refreshed to match the latest implemented product state, including portal access, Webtop runtime support, runtime image cards, cluster resource overview, password change flows, and OpenClaw import/export support.
+## 🚀 News
 
-## Overview
+- [03/20/2026] **ClawManager README refresh** - Reorganized the project introduction based on the ClawReef release README and added ClawManager-specific capabilities including Webtop support, desktop portal access, runtime image settings, OpenClaw memory/preferences Markdown backup and migration, cluster resource overview, and multilingual documentation.
 
-ClawManager keeps the original ClawReef goal of managing virtual desktops on Kubernetes, and extends it into a fuller operations plane for desktop runtime delivery, user governance, and secure in-cluster access.
+## 👀 Overview
 
-Today the project already includes:
+ClawManager is the upgraded version of ClawReef. It keeps the original goal of virtual desktop management on Kubernetes, while extending the product into a more complete control plane for desktop runtime operations, user governance, and secure in-cluster access.
 
-- multi-user desktop instance management
-- role-based admin and user consoles
-- quota control for instances, CPU, memory, storage, and GPU
-- token-based desktop access through backend proxy endpoints
-- embedded desktop access in both the instance detail page and a dedicated portal page
-- OpenClaw workspace export/import support
-- runtime image override management
-- cluster resource overview for administrators
-- multilingual UI with English, Chinese, Japanese, Korean, and German
+Compared with ClawReef, ClawManager not only supports the original instance lifecycle and quota model, but also adds a stronger admin console, proxy-based desktop access, runtime image control, cluster resource visibility, and OpenClaw memory/preferences backup and migration capabilities.
 
-## Current Capabilities
+ClawManager is designed for environments where:
 
-### User Side
+- virtual desktop instances need to be created and managed for multiple users
+- administrators need centralized quota, image, and instance governance
+- desktop services should remain inside Kubernetes and be exposed through authenticated proxying
+- operators need a unified view of instance health, cluster capacity, and runtime status
 
-- Register, log in, refresh token, log out, and change password
-- Create desktop instances with quota-aware validation
-- Supported runtime types: `openclaw`, `webtop`, `ubuntu`, `debian`, `centos`, `custom`
-- Start, stop, restart, delete, and inspect instances
-- Access running desktops from:
-  - the instance detail page
-  - the dedicated `/portal` workspace switcher
-- Generate short-lived access tokens for proxied desktop sessions
-- Export and import OpenClaw workspace archives for `openclaw` instances
+In short, ClawManager is:
 
-### Admin Side
+- the upgraded management plane of ClawReef
+- a centralized operations console for OpenClaw and Linux desktop runtimes
+- a multi-user desktop management platform on Kubernetes
+- a secure access layer for internal desktop services through token-authenticated proxying
 
-- Admin dashboard with:
-  - total users / instances / running instances / allocated storage
-  - cluster node readiness
-  - CPU, memory, and disk requested vs allocatable summaries
-  - per-node capacity table
-- User management:
-  - create users
-  - delete users
-  - update role
-  - update quota
-  - CSV import with default password generation
-- Global instance management across users
-- Runtime image card management for supported instance types
-- Cluster resource overview API and UI
-- Password change entry in admin settings
+## ✨ At a Glance
 
-### Backend / Platform
+- Multi-tenant desktop instance management
+- User quota control for CPU, memory, storage, GPU, and instance count
+- OpenClaw, Webtop, Ubuntu, Debian, CentOS, and custom runtime support
+- Secure desktop proxy access with token generation and WebSocket forwarding
+- OpenClaw memory, preferences, and Markdown configuration backup/migration
+- Admin dashboards for users, instances, image cards, and cluster resources
+- Multilingual UI: English, Chinese, Japanese, Korean, and German
 
-- REST API under `/api/v1`
-- JWT-based authentication
-- WebSocket endpoint for realtime connections
-- Kubernetes-backed instance lifecycle handling
-- Reverse proxy for desktop traffic, including WebSocket forwarding
-- Periodic instance sync service
+> 🧭 From ClawReef to ClawManager: stronger admin control, safer desktop access, and richer runtime operations.
 
-## Architecture
+## 📚 Table of Contents
+
+- [News](#news)
+- [Overview](#overview)
+- [ClawManager New Features](#clawmanager-new-features)
+- [Key Features](#key-features)
+- [Typical Workflow](#typical-workflow)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Tech Stack](#tech-stack)
+- [Kubernetes Prerequisites](#kubernetes-prerequisites)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Documentation](#documentation)
+- [License](#license)
+
+## 🆕 ClawManager New Features
+
+These are the major additions on top of ClawReef:
+
+- 🖥 `webtop` runtime support for browser-based desktop access
+- 🚪 Desktop Portal page for switching between running instances from one place
+- 🔐 Token-based instance access endpoint and reverse proxy routing
+- 🔄 WebSocket forwarding for desktop sessions and status updates
+- 🧠 OpenClaw memory, preferences, and Markdown configuration backup/import APIs
+- 🧩 Runtime image card management for each supported instance type
+- 📊 Cluster resource overview for nodes, CPU, memory, and storage
+- 👨‍💼 Global admin instance management with cross-user filtering and control
+- 📥 CSV-based user import with default password generation
+- 🌍 Internationalized frontend with 5 languages
+
+## 🛠 Key Features
+
+- ⚙️ Instance lifecycle management: create, start, stop, restart, delete, inspect, and force sync
+- 🧱 Supported runtime types: `openclaw`, `webtop`, `ubuntu`, `debian`, `centos`, `custom`
+- 🔒 Secure desktop access through authenticated proxy endpoints
+- 📡 WebSocket-based real-time status updates
+- 📝 OpenClaw memory, preferences, and Markdown configuration archive backup/import
+- 📏 User-level quota management for instances, CPU, memory, storage, and GPU
+- 🖼 Runtime image override management from the admin panel
+- 🛰 Admin dashboard for cluster resource overview and instance health
+- 👥 CSV-based bulk user import and centralized quota assignment
+- 🌐 Multilingual UI and role-based admin/user views
+
+## 🔄 Typical Workflow
+
+1. 👨‍💼 An administrator logs in and configures users, quotas, and runtime image settings.
+2. 🖥 A user creates a desktop instance such as OpenClaw, Webtop, or Ubuntu.
+3. ☸️ ClawManager creates the Kubernetes resources and keeps runtime status synchronized.
+4. 🔐 The user accesses the desktop through the portal or token-based proxy endpoint.
+5. 📊 Administrators monitor instance health and cluster resources from the admin dashboard.
+
+## 🏗 Architecture
 
 ```text
 Browser
-  -> React frontend
-  -> Go/Gin backend
+  -> ClawManager Frontend (React + Vite)
+  -> ClawManager Backend (Go + Gin)
   -> MySQL
   -> Kubernetes API
-  -> Namespace / Pod / PVC / Service
-  -> OpenClaw / Webtop / Linux desktop runtime
+  -> Pod / PVC / Service
+  -> OpenClaw / Webtop / Linux Desktop Runtime
 ```
 
-Notes:
+### High-Level Design
 
-- Desktop traffic is exposed through authenticated backend proxy routes.
-- Cluster visibility and instance lifecycle features require backend access to Kubernetes.
-- Some historical package names still use `clawreef`; the product name is now ClawManager.
+- Frontend: React 19 + TypeScript + Tailwind CSS
+- Backend: Go + Gin + upper/db + MySQL
+- Runtime: Kubernetes
+- Access layer: authenticated reverse proxy with WebSocket forwarding
+- Data layer: MySQL for business data, PVC for persistent instance storage
 
-## Project Structure
+## 🗂 Project Structure
 
 ```text
 ClawManager/
-├── backend/        # Go backend API, services, migrations
-├── frontend/       # React frontend
-├── deployments/    # Root-level Kubernetes deployment files
-├── dev_docs/       # Design and implementation notes
-├── scripts/        # Helper scripts
-├── README.md
-├── README.zh-CN.md
-├── TASK_BREAKDOWN.md
-└── dev_progress.md
+├── backend/            # Go backend API
+├── frontend/           # React frontend
+├── deployments/        # Container and Kubernetes deployment files
+├── dev_docs/           # Design and implementation documents
+├── scripts/            # Helper scripts
+├── TASK_BREAKDOWN.md   # Detailed task breakdown
+└── dev_progress.md     # Development progress log
 ```
 
-## Tech Stack
-
-### Frontend
-
-- React 19
-- TypeScript 5.9
-- Vite 8
-- React Router 7
-- Axios
-- Zustand
+## 💻 Tech Stack
 
 ### Backend
 
@@ -137,78 +165,118 @@ ClawManager/
 - MySQL 8.0+
 - JWT authentication
 
+### Frontend
+
+- React 19
+- TypeScript 5.9
+- Vite 7
+- Tailwind CSS 4
+- React Router
+
 ### Infrastructure
 
 - Kubernetes
 - Docker
-- WebSocket proxying
+- Nginx
 
-## API Highlights
+## ☸️ Kubernetes Prerequisites
 
-Key implemented endpoints:
+ClawManager is Kubernetes-first. Managed nodes must join a Kubernetes cluster before ClawManager can schedule instances, inspect resources, or provide unified operations.
 
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/change-password`
-- `GET /api/v1/auth/me`
-- `GET /api/v1/users`
-- `POST /api/v1/users/import`
-- `PUT /api/v1/users/:id/quota`
-- `GET /api/v1/instances`
-- `POST /api/v1/instances`
-- `POST /api/v1/instances/:id/start`
-- `POST /api/v1/instances/:id/stop`
-- `POST /api/v1/instances/:id/restart`
-- `POST /api/v1/instances/:id/access`
-- `POST /api/v1/instances/:id/sync`
-- `GET /api/v1/instances/:id/openclaw/export`
-- `POST /api/v1/instances/:id/openclaw/import`
-- `GET /api/v1/system-settings/images`
-- `PUT /api/v1/system-settings/images`
-- `GET /api/v1/system-settings/cluster-resources`
-- `GET /api/v1/ws`
-
-## Quick Start
-
-### Prerequisites
-
-- MySQL 8.0+
-- A reachable Kubernetes cluster
-- `kubectl` configured for the cluster used by ClawManager
-- Node.js 20+
-- Go 1.21+
-
-Verify Kubernetes connectivity first:
+Before installing ClawManager, prepare a working Kubernetes environment and verify that `kubectl` can access it:
 
 ```bash
 kubectl get nodes
 ```
 
-### Backend
+### Linux Setup Examples
 
-Local development config lives in `backend/configs/dev.yaml` and defaults to:
+Using `k3s`:
 
-- server: `http://localhost:9001`
-- database host: `localhost`
-- database port: `13306`
-- database name: `clawreef`
+```bash
+curl -sfL https://get.k3s.io | sh -
+sudo kubectl get nodes
+```
 
-Start the backend:
+Using `microk8s`:
+
+```bash
+sudo snap install microk8s --classic
+sudo microk8s status --wait-ready
+sudo microk8s kubectl get nodes
+```
+
+### Basic Kubernetes Commands
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+kubectl get pvc -A
+kubectl cluster-info
+```
+
+### Minimum Recommendation
+
+- 1 Kubernetes node
+- 4 CPU
+- 8 GB RAM
+- 20+ GB available disk
+
+If you plan to run multiple desktop instances simultaneously, allocate more CPU, memory, and storage.
+
+## 📦 Installation
+
+Before installation, make sure:
+
+- MySQL is available
+- Kubernetes is available
+- `kubectl get nodes` works
+
+Start MySQL and run database migrations:
 
 ```bash
 cd backend
-go mod tidy
-make run
+make docker-up
+make migrate
 ```
 
-### Frontend
-
-Start the frontend:
+Install dependencies:
 
 ```bash
 cd frontend
 npm install
+
+cd ../backend
+go mod tidy
+```
+
+### Kubernetes Deployment Example
+
+Apply the bundled manifest:
+
+```bash
+kubectl apply -f deployments/k8s/clawmanager.yaml
+kubectl get pods -A
+kubectl get svc -A
+```
+
+## ⚡ Quick Start
+
+### Backend
+
+```bash
+cd backend
+make run
+```
+
+Default backend address:
+
+- `http://localhost:9001`
+
+### Frontend
+
+```bash
+cd frontend
 npm run dev
 ```
 
@@ -216,54 +284,29 @@ Default frontend address:
 
 - `http://localhost:9002`
 
-### Database Bootstrap
+### Default Accounts
 
-If you are using the local init tool:
+- Default admin account: `admin / admin123`
+- Default password for imported admin users: `admin123`
+- Default password for imported regular users: `user123`
 
-```bash
-cd backend
-go run cmd/initdb/main.go
-```
+### First Login
 
-The initializer creates the default admin account:
+1. 👨‍💼 Log in as admin.
+2. 👥 Create or import users and assign quotas.
+3. 🧩 Optionally configure runtime image cards in system settings.
+4. 🖥 Log in as a user and create an instance.
+5. 🔗 Access the desktop through Portal View or Desktop Access.
 
-- `admin / admin123`
+## ⚙️ Configuration
 
-### Docker Compose
+ClawManager follows a clear security model:
 
-The repository also includes Docker Compose files under `backend/deployments/docker/`.
-
-```bash
-cd backend
-make docker-up
-```
-
-## First Run Workflow
-
-1. Log in as `admin`.
-2. Create users manually or import them from CSV.
-3. Assign quotas for instances, CPU, memory, storage, and GPU.
-4. Optionally configure runtime image cards in admin settings.
-5. Log in as a regular user and create an instance.
-6. Open the desktop from the instance detail page or from `/portal`.
-
-## CSV Import
-
-The user import flow accepts a CSV file with headers such as:
-
-```csv
-Username,Email,Role,Password,Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count
-```
-
-Rules implemented in code:
-
-- `Username`, `Role`, `Max Instances`, `Max CPU Cores`, `Max Memory (GB)`, and `Max Storage (GB)` are required
-- `Email`, `Password`, and `Max GPU Count` are optional
-- when `Password` is omitted, the backend generates a default by role:
-  - imported admin: `admin123`
-  - imported user: `user123`
-
-## Configuration Notes
+- instance services use Kubernetes internal networking
+- desktop access goes through the authenticated ClawManager backend proxy
+- backend is best deployed inside the cluster
+- runtime images can be managed centrally through system settings
+- managed nodes should all belong to the Kubernetes cluster
 
 Common backend environment variables:
 
@@ -276,21 +319,35 @@ Common backend environment variables:
 - `DB_NAME`
 - `JWT_SECRET`
 
-Practical notes:
+Frontend development mode proxies `/api` to the backend through Vite.
 
-- frontend development calls the backend on port `9001`
-- desktop access uses backend proxy routes under `/api/v1/instances/:id/proxy`
-- OpenClaw import/export is only available for running `openclaw` instances
-- cluster resource overview is admin-only
+### CSV Import Template
 
-## Documentation
+```csv
+Username,Email,Role,Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count (optional)
+```
+
+Notes:
+
+- `Email` is optional
+- `Max GPU Count (optional)` is optional
+- all other columns are required
+- quota values should match your cluster capacity planning
+
+## 📘 Documentation
 
 - [TASK_BREAKDOWN.md](./TASK_BREAKDOWN.md)
 - [dev_progress.md](./dev_progress.md)
-- [backend/README.md](./backend/README.md)
+- [dev_docs/README_DOCS.md](./dev_docs/README_DOCS.md)
 - [dev_docs/ARCHITECTURE_SIMPLE.md](./dev_docs/ARCHITECTURE_SIMPLE.md)
 - [dev_docs/MONITORING_DASHBOARD.md](./dev_docs/MONITORING_DASHBOARD.md)
+- [backend/README.md](./backend/README.md)
+- [frontend/README.md](./frontend/README.md)
 
-## License
+## 📄 License
 
-MIT
+This project is licensed under the MIT License.
+
+## ❤️ Open Source
+
+Issues and pull requests are welcome, including improvements to features, docs, and tests.
