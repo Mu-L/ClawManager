@@ -305,7 +305,7 @@ spec:
       serviceAccountName: clawmanager-app
       containers:
         - name: clawmanager-app
-          image: ericpearlee/clawmanager:latest
+          image: ghcr.io/iamlovingit/clawmanager:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: https
