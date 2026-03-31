@@ -158,14 +158,15 @@ const UserManagementPage: React.FC = () => {
         'Username',
         'Email',
         'Role',
+        'Password (optional)',
         'Max Instances',
         'Max CPU Cores',
         'Max Memory (GB)',
         'Max Storage (GB)',
         'Max GPU Count (optional)',
       ],
-      ['alice', 'alice@example.com', 'user', '10', '40', '100', '500', '2'],
-      ['bob', '', 'admin', '20', '80', '200', '1000', '4'],
+      ['alice', 'alice@example.com', 'user', '', '10', '40', '100', '500', '2'],
+      ['bob', '', 'admin', 'admin123', '20', '80', '200', '1000', '4'],
     ]
       .map((row) => row.join(','))
       .join('\n');
@@ -228,7 +229,7 @@ const UserManagementPage: React.FC = () => {
                   })}
                 </div>
                 <div className="mt-1 text-[#8f5b4b]">
-                  {t('userManagementPage.expectedColumns')} <code>Username,Email,Role,Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count (optional)</code>
+                  {t('userManagementPage.expectedColumns')} <code>Username,Email,Role,Password (optional),Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count (optional)</code>
                 </div>
               </div>
               <button
@@ -366,7 +367,7 @@ const UserManagementPage: React.FC = () => {
               <div className="rounded-lg border border-[#eadfd8] bg-[#fff8f5] p-3 text-sm text-[#5f5957]">
                 <div className="font-medium text-[#171212]">{t('userManagementPage.supportedFormat')}</div>
                 <div className="mt-1">{t('userManagementPage.csvHeaders')}</div>
-                <code className="mt-2 block rounded bg-white px-2 py-1 text-xs">Username,Email,Role,Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count (optional)</code>
+                <code className="mt-2 block rounded bg-white px-2 py-1 text-xs">Username,Email,Role,Password (optional),Max Instances,Max CPU Cores,Max Memory (GB),Max Storage (GB),Max GPU Count (optional)</code>
                 <div className="mt-2 text-xs text-[#8f5b4b]">
                   {t('userManagementPage.csvHelp')}
                 </div>

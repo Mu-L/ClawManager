@@ -70,6 +70,7 @@ export interface ModelInvocationRecord {
   request_payload?: string;
   response_payload?: string;
   error_message?: string;
+  latency_ms?: number;
   created_at: string;
   completed_at?: string;
 }

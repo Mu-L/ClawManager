@@ -201,6 +201,16 @@ function formatDurationBetween(start?: string, end?: string) {
   return formatDuration(endTimestamp - startTimestamp);
 }
 
+function resolveDurationMs(start?: string, end?: string) {
+  const startTimestamp = parseTimestamp(start);
+  const endTimestamp = parseTimestamp(end);
+  if (startTimestamp === null || endTimestamp === null || endTimestamp < startTimestamp) {
+    return null;
+  }
+
+  return endTimestamp - startTimestamp;
+}
+
 function formatNumberValue(value: number, locale: string) {
   return new Intl.NumberFormat(locale).format(value);
 }
@@ -502,6 +512,17 @@ const AIAuditPage: React.FC = () => {
       return null;
     }
 
+    const flowEntries = [
+      ...selectedTrace.flow_nodes.map((node) => node.created_at),
+      ...selectedTrace.invocations.flatMap((item) => [item.created_at, item.completed_at].filter(Boolean) as string[]),
+    ]
+      .map((value) => {
+        const parsed = parseTimestamp(value);
+        return parsed === null ? null : { value, parsed };
+      })
+      .filter((entry): entry is { value: string; parsed: number } => entry !== null)
+      .sort((a, b) => a.parsed - b.parsed);
+
     const activityEntries = [
       ...selectedTrace.flow_nodes.map((node) => node.created_at),
       ...selectedTrace.invocations.flatMap((item) => [item.created_at, item.completed_at].filter(Boolean) as string[]),
@@ -532,6 +553,9 @@ const AIAuditPage: React.FC = () => {
       startedAt: activityEntries[0]?.value,
       latestAt: activityEntries[activityEntries.length - 1]?.value,
       completedAt: completedEntries[completedEntries.length - 1]?.value,
+      flowStartedAt: flowEntries[0]?.value,
+      flowLatestAt: flowEntries[flowEntries.length - 1]?.value,
+      flowCompletedAt: completedEntries[completedEntries.length - 1]?.value ?? flowEntries[flowEntries.length - 1]?.value,
       totalTokens: tokenSource.reduce((sum, item) => sum + item.total_tokens, 0),
       promptTokens: tokenSource.reduce((sum, item) => sum + item.prompt_tokens, 0),
       completionTokens: tokenSource.reduce((sum, item) => sum + item.completion_tokens, 0),
@@ -540,6 +564,43 @@ const AIAuditPage: React.FC = () => {
       currency: selectedTrace.cost_records[0]?.currency ?? 'USD',
     };
   }, [selectedTrace]);
+
+  const flowNodeDurationMap = useMemo(() => {
+    if (!selectedTrace) {
+      return {} as Record<string, number | null>;
+    }
+
+    const traceEnd = traceSummary?.flowCompletedAt ?? traceSummary?.flowLatestAt ?? traceSummary?.completedAt ?? traceSummary?.latestAt;
+    const invocationById = new Map(selectedTrace.invocations.map((item) => [item.id, item]));
+
+    return selectedTrace.flow_nodes.reduce<Record<string, number | null>>((accumulator, node, index, nodes) => {
+      let durationMs: number | null = null;
+      const invocation = node.invocation_id != null ? invocationById.get(node.invocation_id) : undefined;
+
+      if (node.kind === 'llm_call' && invocation?.latency_ms != null && invocation.latency_ms > 0) {
+        durationMs = invocation.latency_ms;
+      }
+
+      if (durationMs == null) {
+        durationMs = resolveDurationMs(node.created_at, nodes[index + 1]?.created_at);
+      }
+
+      if (durationMs == null) {
+        durationMs = resolveDurationMs(invocation?.created_at, invocation?.completed_at);
+      }
+
+      if (durationMs == null) {
+        durationMs = resolveDurationMs(node.created_at, traceEnd);
+      }
+
+      if (durationMs == null && index === nodes.length - 1) {
+        durationMs = 0;
+      }
+
+      accumulator[node.id] = durationMs;
+      return accumulator;
+    }, {});
+  }, [selectedTrace, traceSummary?.completedAt, traceSummary?.flowCompletedAt, traceSummary?.flowLatestAt, traceSummary?.latestAt]);
 
   const copyTrace = async (traceId: string) => {
     try {
@@ -636,17 +697,18 @@ const AIAuditPage: React.FC = () => {
       return;
     }
 
+    const overscan = 12;
     const itemTop = item.offsetTop;
     const itemBottom = itemTop + item.offsetHeight;
     const viewportTop = container.scrollTop;
     const viewportBottom = viewportTop + container.clientHeight;
 
-    if (itemTop >= viewportTop && itemBottom <= viewportBottom) {
+    if (itemTop >= viewportTop + overscan && itemBottom <= viewportBottom - overscan) {
       return;
     }
 
     const nextTop = Math.max(0, itemTop - container.clientHeight / 2 + item.offsetHeight / 2);
-    container.scrollTo({ top: nextTop, behavior: 'smooth' });
+    container.scrollTo({ top: nextTop });
   }, [activeFlowNodeId]);
 
   const isSplitView = detailPanelMounted || isDetailVisible;
@@ -763,7 +825,7 @@ const AIAuditPage: React.FC = () => {
             <DetailMetricCard
               label={t('costsPage.internalCost')}
               value={formatCurrencyValue(traceSummary.totalInternalCost, traceSummary.currency, locale)}
-              hint={traceSummary.completedAt ? formatDurationBetween(traceSummary.startedAt, traceSummary.completedAt) : '-'}
+              hint={traceSummary.flowCompletedAt ? formatDurationBetween(traceSummary.flowStartedAt, traceSummary.flowCompletedAt) : '-'}
               tone="emerald"
             />
           </div>
@@ -778,17 +840,18 @@ const AIAuditPage: React.FC = () => {
           {selectedTrace.flow_nodes.length === 0 ? (
             <div className="text-sm text-[#8f8681]">{t('aiAuditPage.noFlowNodes')}</div>
           ) : (
-            <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
+            <div className="grid gap-5 xl:grid-cols-[228px_minmax(0,1fr)]">
               <aside className="self-start xl:sticky xl:top-6">
-                <div className="overflow-hidden rounded-[24px] border border-[#efe3db] bg-[#fcfaf8] shadow-[0_24px_60px_-52px_rgba(88,54,24,0.4)]">
+                <div className="flex max-h-[calc(100vh-3rem)] flex-col overflow-hidden rounded-[24px] border border-[#efe3db] bg-[#fcfaf8] shadow-[0_24px_60px_-52px_rgba(88,54,24,0.4)]">
                   <div className="border-b border-[#f1e7e1] px-4 py-4">
                     <div className="text-sm font-semibold text-[#171212]">{t('aiAuditPage.flowMinimap')}</div>
                     <p className="mt-1 text-xs leading-5 text-[#8f8681]">{t('aiAuditPage.flowMinimapSubtitle')}</p>
                   </div>
-                  <div ref={minimapScrollRef} className="max-h-[70vh] overflow-auto p-3">
-                    <div className="space-y-2">
+                  <div ref={minimapScrollRef} className="min-h-0 overflow-auto p-2.5">
+                    <div className="space-y-1.5">
                       {selectedTrace.flow_nodes.map((node, index) => {
                         const isActive = node.id === activeFlowNodeId;
+                        const durationLabel = formatDuration(flowNodeDurationMap[node.id]);
 
                         return (
                           <button
@@ -803,22 +866,25 @@ const AIAuditPage: React.FC = () => {
                             }}
                             type="button"
                             onClick={() => jumpToFlowNode(node.id)}
-                            className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
+                            className={`w-full rounded-[18px] border px-2.5 py-2 text-left transition ${
                               isActive
                                 ? 'border-[#ef6b4a] bg-[#fff3ec] shadow-[0_18px_42px_-32px_rgba(180,108,80,0.55)]'
                                 : 'border-transparent bg-white hover:border-[#eadfd8] hover:bg-[#fffaf7]'
                             }`}
                           >
-                            <div className="flex items-start gap-3">
-                              <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold ${flowKindTone(node.kind)}`}>
+                            <div className="flex items-start gap-2.5">
+                              <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold ${flowKindTone(node.kind)}`}>
                                 {index + 1}
                               </span>
                               <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold text-[#171212]">
+                                <div className="truncate text-[13px] font-semibold leading-5 text-[#171212]">
                                   {node.title || flowKindLabel(node.kind, t)}
                                 </div>
-                                <div className="mt-1 text-[11px] text-[#7a6d66]">{flowKindLabel(node.kind, t)}</div>
-                                <div className="mt-1 text-[11px] text-[#9a8f89]">{formatRelativeTimestamp(node.created_at, locale)}</div>
+                                <div className="mt-0.5 text-[10px] text-[#7a6d66]">{flowKindLabel(node.kind, t)}</div>
+                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-[#9a8f89]">
+                                  <span>{formatRelativeTimestamp(node.created_at, locale)}</span>
+                                  <span>{durationLabel}</span>
+                                </div>
                               </div>
                             </div>
                           </button>
@@ -870,6 +936,9 @@ const AIAuditPage: React.FC = () => {
                             <div className="mt-2 text-sm leading-6 text-[#5f5957]">{node.summary}</div>
                           )}
                           <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#7a6d66]">
+                            {flowNodeDurationMap[node.id] != null && (
+                              <MetaPill tone="soft">{formatDuration(flowNodeDurationMap[node.id])}</MetaPill>
+                            )}
                             {node.request_id && (
                               <MetaPill tone="soft">{`${t('aiAuditPage.requestIdLabel')}: ${node.request_id}`}</MetaPill>
                             )}

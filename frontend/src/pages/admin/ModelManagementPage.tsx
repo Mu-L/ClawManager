@@ -765,7 +765,7 @@ const ModelManagementPage: React.FC = () => {
           {loading ? (
             <div className="mt-6 text-sm text-gray-500">{t('modelManagementPage.loading')}</div>
           ) : (
-            <div className="mt-6 grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 items-stretch gap-5 xl:grid-cols-2">
               {models.map((card) => {
                 const autoDiscoverySupported = AUTO_DISCOVERY_PROVIDERS.has(card.provider_type);
                 const discoveredModels = card.discovered_models ?? [];
@@ -791,7 +791,7 @@ const ModelManagementPage: React.FC = () => {
                   return (
                     <div
                       key={card.local_id}
-                      className="self-start rounded-[26px] border border-[#ead8cf] bg-[rgba(255,248,245,0.84)] p-5 shadow-[0_18px_42px_-34px_rgba(72,44,24,0.42)]"
+                      className="flex h-full flex-col rounded-[26px] border border-[#ead8cf] bg-[rgba(255,248,245,0.84)] p-5 shadow-[0_18px_42px_-34px_rgba(72,44,24,0.42)]"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex min-w-0 items-start gap-3">
@@ -818,7 +818,7 @@ const ModelManagementPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <dl className="mt-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                      <dl className="mt-5 grid flex-1 content-start grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                         <div>
                           <dt className="font-medium text-gray-700">{t('modelManagementPage.providerModel')}</dt>
                           <dd className="mt-1 text-gray-600">{card.provider_model_name || '-'}</dd>

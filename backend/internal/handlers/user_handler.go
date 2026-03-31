@@ -222,9 +222,6 @@ func (h *UserHandler) ImportUsers(c *gin.Context) {
 			continue
 		}
 
-		if password == "" {
-			password = servicesDefaultPasswordForRole(role)
-		}
 		if email == "" && username != "" {
 			email = fmt.Sprintf("%s@import.clawmanager.local", strings.ToLower(username))
 		}
@@ -236,6 +233,10 @@ func (h *UserHandler) ImportUsers(c *gin.Context) {
 				Error:    validationErr,
 			})
 			continue
+		}
+
+		if password == "" {
+			password = servicesDefaultPasswordForRole(role)
 		}
 
 		user, createErr := h.userService.CreateUser(username, email, password, role)
@@ -333,7 +334,7 @@ func validateImportedUser(username, email, password, role string) string {
 	if email == "" || !strings.Contains(email, "@") {
 		return "Email must be a valid email"
 	}
-	if len(password) < 8 {
+	if password != "" && len(password) < 8 {
 		return "Password must be at least 8 characters"
 	}
 	if role != "admin" && role != "user" {
