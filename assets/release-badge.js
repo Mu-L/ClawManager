@@ -1,26 +1,37 @@
 (() => {
   const DEFAULT_REPO = "Yuan-lab-LLM/ClawManager";
-  const CACHE_PREFIX = "clawmanager-release-badge";
-  const CACHE_TTL_MS = 30 * 60 * 1000;
-  let latestRelease = null;
-  let repoStats = null;
-  let repoStatsRequest = null;
+  const DEFAULT_META = {
+    repo: DEFAULT_REPO,
+    releaseTag: "v2026.4.2",
+    releaseUrl: "https://github.com/Yuan-lab-LLM/ClawManager/releases/tag/v2026.4.2",
+    releaseLatestUrl: "https://github.com/Yuan-lab-LLM/ClawManager/releases/latest",
+    stars: 419,
+    forks: 65,
+  };
 
-  function parseRepoFromHref(href) {
-    if (!href) return DEFAULT_REPO;
+  let githubMeta = DEFAULT_META;
 
+  function detectBasePath() {
     try {
-      const url = new URL(href);
-      const parts = url.pathname.split("/").filter(Boolean);
-      if (parts.length >= 2) {
-        return `${parts[0]}/${parts[1]}`;
+      const currentScript = document.currentScript;
+      if (!currentScript?.src) {
+        throw new Error("missing current script");
       }
 
-      return DEFAULT_REPO;
+      const scriptUrl = new URL(currentScript.src, window.location.href);
+      const assetIndex = scriptUrl.pathname.lastIndexOf("/assets/");
+      if (assetIndex >= 0) {
+        return scriptUrl.pathname.slice(0, assetIndex);
+      }
     } catch {
-      return DEFAULT_REPO;
+      // Fall through to pathname-based detection.
     }
+
+    return window.location.pathname.startsWith("/ClawManager/") ? "/ClawManager" : "";
   }
+
+  const BASE_PATH = detectBasePath();
+  const META_PATH = `${BASE_PATH}/assets/github-meta.json`;
 
   function repoPage(repo, path = "") {
     return `https://github.com/${repo}${path}`;
@@ -30,42 +41,54 @@
     return repoPage(repo, "/releases/latest");
   }
 
-  function latestReleaseApi(repo) {
-    return `https://api.github.com/repos/${repo}/releases/latest`;
-  }
+  function parseRepoFromHref(href) {
+    if (!href) return DEFAULT_REPO;
 
-  function repoApi(repo) {
-    return `https://api.github.com/repos/${repo}`;
-  }
-
-  function cacheKey(repo, kind) {
-    return `${CACHE_PREFIX}:${kind}:${repo}`;
-  }
-
-  function readCache(repo, kind) {
     try {
-      const raw = localStorage.getItem(cacheKey(repo, kind));
-      if (!raw) return null;
-
-      const cached = JSON.parse(raw);
-      if (!cached?.fetchedAt) return null;
-      if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) return null;
-
-      return cached;
+      const url = new URL(href, window.location.href);
+      const parts = url.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        return `${parts[0]}/${parts[1]}`;
+      }
     } catch {
-      return null;
+      // Use the default repo below.
     }
+
+    return DEFAULT_REPO;
   }
 
-  function writeCache(repo, kind, value) {
-    try {
-      localStorage.setItem(
-        cacheKey(repo, kind),
-        JSON.stringify({ ...value, fetchedAt: Date.now() }),
-      );
-    } catch {
-      // Ignore storage failures.
-    }
+  function normalizeMeta(meta) {
+    const repo =
+      typeof meta?.repo === "string" && meta.repo.includes("/")
+        ? meta.repo
+        : DEFAULT_META.repo;
+
+    const releaseTag =
+      typeof meta?.releaseTag === "string" && meta.releaseTag.trim()
+        ? meta.releaseTag.trim()
+        : DEFAULT_META.releaseTag;
+
+    const releaseUrl =
+      typeof meta?.releaseUrl === "string" && meta.releaseUrl.startsWith("https://")
+        ? meta.releaseUrl
+        : DEFAULT_META.releaseUrl;
+
+    const releaseLatestUrl =
+      typeof meta?.releaseLatestUrl === "string" && meta.releaseLatestUrl.startsWith("https://")
+        ? meta.releaseLatestUrl
+        : latestReleasePage(repo);
+
+    const stars = Number.isFinite(meta?.stars) ? meta.stars : DEFAULT_META.stars;
+    const forks = Number.isFinite(meta?.forks) ? meta.forks : DEFAULT_META.forks;
+
+    return {
+      repo,
+      releaseTag,
+      releaseUrl,
+      releaseLatestUrl,
+      stars,
+      forks,
+    };
   }
 
   function formatBadgeText(currentText, tag) {
@@ -82,6 +105,17 @@
     }
 
     return `${tag} Released - See what's new`;
+  }
+
+  function formatCount(value) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      return "—";
+    }
+
+    return new Intl.NumberFormat("en", {
+      notation: "compact",
+      maximumFractionDigits: value >= 10000 ? 0 : 1,
+    }).format(value);
   }
 
   function findBadge() {
@@ -101,17 +135,6 @@
     );
   }
 
-  function formatCount(value) {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      return null;
-    }
-
-    return new Intl.NumberFormat("en", {
-      notation: "compact",
-      maximumFractionDigits: value >= 10000 ? 0 : 1,
-    }).format(value);
-  }
-
   function createStatIcon(kind) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.dataset.statIcon = kind;
@@ -126,7 +149,7 @@
     svg.setAttribute("aria-hidden", "true");
     svg.style.flexShrink = "0";
 
-    const pathsByKind = {
+    const shapesByKind = {
       stars: [
         ["polygon", "12 2 15.1 8.3 22 9.3 17 14.2 18.2 21 12 17.7 5.8 21 7 14.2 2 9.3 8.9 8.3"],
       ],
@@ -140,8 +163,9 @@
       ],
     };
 
-    for (const [tagName, value] of pathsByKind[kind] || []) {
+    for (const [tagName, value] of shapesByKind[kind] || []) {
       const element = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+
       if (tagName === "path") {
         element.setAttribute("d", value);
       } else if (tagName === "polygon") {
@@ -152,6 +176,7 @@
         element.setAttribute("cy", cy);
         element.setAttribute("r", r);
       }
+
       svg.appendChild(element);
     }
 
@@ -163,52 +188,19 @@
     if (!badge) return;
 
     const repo = parseRepoFromHref(badge.href);
-    const fallbackHref = latestReleasePage(repo);
-    const textNode = getBadgeTextNode(badge);
+    const nextHref = githubMeta.releaseLatestUrl || latestReleasePage(repo);
+    const nextHrefAbsolute = new URL(nextHref, window.location.href).href;
 
-    badge.href = latestRelease?.href || fallbackHref;
-
-    if (!textNode) return;
-
-    const currentText = textNode.textContent.trim();
-    if (!latestRelease?.tag) return;
-
-    textNode.textContent = ` ${formatBadgeText(currentText, latestRelease.tag)} `;
-  }
-
-  async function loadLatestRelease() {
-    const badge = findBadge();
-    const repo = parseRepoFromHref(badge?.href);
-    const cached = readCache(repo, "release");
-
-    if (cached) {
-      latestRelease = cached;
-      applyLatestRelease();
+    if (badge.href !== nextHrefAbsolute) {
+      badge.href = nextHrefAbsolute;
     }
 
-    try {
-      const response = await fetch(latestReleaseApi(repo), {
-        headers: {
-          Accept: "application/vnd.github+json",
-        },
-      });
+    const textNode = getBadgeTextNode(badge);
+    if (!textNode) return;
 
-      if (!response.ok) {
-        throw new Error(`Failed to load release: ${response.status}`);
-      }
-
-      const release = await response.json();
-      if (!release?.tag_name) return;
-
-      latestRelease = {
-        tag: release.tag_name,
-        href: release.html_url || latestReleasePage(repo),
-      };
-
-      writeCache(repo, "release", latestRelease);
-      applyLatestRelease();
-    } catch {
-      applyLatestRelease();
+    const nextText = ` ${formatBadgeText(textNode.textContent.trim(), githubMeta.releaseTag)} `;
+    if (textNode.textContent !== nextText) {
+      textNode.textContent = nextText;
     }
   }
 
@@ -219,15 +211,15 @@
       link.dataset.githubStat = key;
     }
 
-    const valueText = value || "—";
-    const ariaText = value ? `GitHub ${label.toLowerCase()} ${value}` : `GitHub ${label.toLowerCase()}`;
+    const ariaText = `GitHub ${label.toLowerCase()} ${value}`;
 
     if (link.className !== githubButton.className) {
       link.className = githubButton.className;
     }
 
-    if (link.href !== href) {
-      link.href = href;
+    const hrefAbsolute = new URL(href, window.location.href).href;
+    if (link.href !== hrefAbsolute) {
+      link.href = hrefAbsolute;
     }
 
     if (link.target !== "_blank") {
@@ -250,13 +242,13 @@
       link.style.whiteSpace = "nowrap";
     }
 
-    if (link.dataset.renderedStat !== `${key}:${valueText}`) {
+    if (link.dataset.renderedStat !== `${key}:${value}`) {
       const icon = createStatIcon(key);
       const count = document.createElement("span");
       count.dataset.statCount = "true";
-      count.textContent = valueText;
+      count.textContent = value;
       link.replaceChildren(icon, count);
-      link.dataset.renderedStat = `${key}:${valueText}`;
+      link.dataset.renderedStat = `${key}:${value}`;
     }
 
     if (link.parentElement !== parent || link.nextElementSibling !== before) {
@@ -280,7 +272,7 @@
       key: "stars",
       href: repoPage(repo, "/stargazers"),
       label: "Stars",
-      value: formatCount(repoStats?.stars),
+      value: formatCount(githubMeta.stars),
     });
 
     upsertRepoStatLink({
@@ -290,59 +282,33 @@
       key: "forks",
       href: repoPage(repo, "/network/members"),
       label: "Forks",
-      value: formatCount(repoStats?.forks),
+      value: formatCount(githubMeta.forks),
     });
   }
 
-  async function loadRepoStats() {
-    const githubButton = findHeaderGitHubButton();
-    const repo = parseRepoFromHref(githubButton?.href);
-    const cached = readCache(repo, "repo");
+  async function loadGitHubMeta() {
+    try {
+      const response = await fetch(META_PATH, {
+        cache: "no-store",
+      });
 
-    if (cached?.stars != null && cached?.forks != null) {
-      repoStats = cached;
-      applyRepoStats();
-    }
-
-    if (repoStatsRequest) {
-      return repoStatsRequest;
-    }
-
-    repoStatsRequest = (async () => {
-      try {
-        const response = await fetch(repoApi(repo), {
-          headers: {
-            Accept: "application/vnd.github+json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load repo stats: ${response.status}`);
-        }
-
-        const data = await response.json();
-        repoStats = {
-          stars: data.stargazers_count,
-          forks: data.forks_count,
-        };
-
-        writeCache(repo, "repo", repoStats);
-        applyRepoStats();
-      } catch {
-        applyRepoStats();
-      } finally {
-        repoStatsRequest = null;
+      if (!response.ok) {
+        throw new Error(`Failed to load metadata: ${response.status}`);
       }
-    })();
 
-    return repoStatsRequest;
+      githubMeta = normalizeMeta(await response.json());
+    } catch {
+      githubMeta = DEFAULT_META;
+    }
+
+    applyLatestRelease();
+    applyRepoStats();
   }
 
   function start() {
     applyLatestRelease();
     applyRepoStats();
-    loadLatestRelease();
-    loadRepoStats();
+    loadGitHubMeta();
 
     const observer = new MutationObserver(() => {
       applyLatestRelease();
