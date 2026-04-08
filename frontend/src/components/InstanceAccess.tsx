@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useCallback, useRef } from "react";
+import { OpenClawDesktopOverlay } from "./OpenClawDesktopOverlay";
 import { useI18n } from "../contexts/I18nContext";
 import { useInstanceDesktopAccess } from "../hooks/useInstanceDesktopAccess";
 
@@ -6,6 +7,12 @@ interface InstanceAccessProps {
   instanceId: number;
   instanceName: string;
   isRunning: boolean;
+  overlay?: {
+    gatewayStatus: string;
+    canControl: boolean;
+    actionLoading: string | null;
+    onCommand: (command: "start" | "stop" | "restart" | "collect-system-info" | "health-check") => void;
+  };
 }
 
 const desktopConnectPreferenceStore = new Map<number, boolean>();
@@ -44,6 +51,7 @@ export function InstanceAccess({
   instanceId,
   instanceName,
   isRunning,
+  overlay,
 }: InstanceAccessProps) {
   const { t } = useI18n();
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -184,7 +192,18 @@ export function InstanceAccess({
 
   if (showStartScreen) {
     return (
-      <div className="relative overflow-hidden rounded-[28px] border border-[#1f2937] bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.2),transparent_28%),linear-gradient(180deg,#111827_0%,#0f172a_100%)] shadow-[0_30px_90px_-56px_rgba(17,24,39,0.9)]">
+      <div
+        ref={containerRef}
+        className="relative overflow-hidden rounded-[28px] border border-[#1f2937] bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.2),transparent_28%),linear-gradient(180deg,#111827_0%,#0f172a_100%)] shadow-[0_30px_90px_-56px_rgba(17,24,39,0.9)]"
+      >
+        {overlay ? (
+          <OpenClawDesktopOverlay
+            gatewayStatus={overlay.gatewayStatus}
+            canControl={overlay.canControl}
+            actionLoading={overlay.actionLoading}
+            onCommand={overlay.onCommand}
+          />
+        ) : null}
         <div
           className={`${frameHeightClass} flex flex-col items-center justify-center px-8 text-center`}
         >
@@ -235,6 +254,14 @@ export function InstanceAccess({
       ref={containerRef}
       className={`relative overflow-hidden bg-[#111827] ${isFullscreen ? "flex h-screen flex-col rounded-none" : "rounded-[28px] border border-[#1f2937] shadow-[0_30px_90px_-56px_rgba(17,24,39,0.9)]"}`}
     >
+      {overlay ? (
+        <OpenClawDesktopOverlay
+          gatewayStatus={overlay.gatewayStatus}
+          canControl={overlay.canControl}
+          actionLoading={overlay.actionLoading}
+          onCommand={overlay.onCommand}
+        />
+      ) : null}
       <div className="flex items-center justify-between px-4 py-3 bg-gray-800 text-white">
         <div className="flex items-center space-x-4">
           <span className="text-sm font-medium">{instanceName}</span>

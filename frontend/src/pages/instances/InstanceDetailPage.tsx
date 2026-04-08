@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { InstanceAccess } from "../../components/InstanceAccess";
-import { OpenClawDesktopOverlay } from "../../components/OpenClawDesktopOverlay";
 import UserLayout from "../../components/UserLayout";
 import { useI18n } from "../../contexts/I18nContext";
 import { instanceService } from "../../services/instanceService";
+import { skillService } from "../../services/skillService";
 import type {
   AgentInfo,
   Instance,
@@ -14,12 +14,14 @@ import type {
   InstanceStatus,
   RuntimeStatus,
 } from "../../types/instance";
+import type { InstanceSkill, Skill } from "../../types/skill";
 
 const META_POLL_INTERVAL_MS = 8000;
 const RUNTIME_POLL_INTERVAL_MS = 5000;
 const RUNTIME_BURST_POLL_INTERVAL_MS = 1000;
 const RUNTIME_BURST_WINDOW_MS = 15000;
 const METRIC_WINDOW_MS = 5 * 60 * 1000;
+const INSTANCE_SKILL_PAGE_SIZE = 5;
 
 type TimelineItem = {
   id: string;
@@ -55,6 +57,11 @@ type MetricCurve = {
   legend?: Array<{ label: string; accent: string }>;
   preNormalized?: boolean;
 };
+
+type TranslateFn = (
+  key: string,
+  variables?: Record<string, string | number>,
+) => string;
 
 function statusStyle(status: string) {
   switch (status) {
@@ -94,8 +101,34 @@ function statusStyle(status: string) {
   }
 }
 
+function skillRiskLabel(t: TranslateFn, riskLevel?: string | null) {
+  switch ((riskLevel || "").toLowerCase()) {
+    case "none":
+      return t("instances.skillRiskNone");
+    case "low":
+      return t("instances.skillRiskLow");
+    case "medium":
+      return t("instances.skillRiskMedium");
+    case "high":
+      return t("instances.skillRiskHigh");
+    default:
+      return t("instances.skillRiskUnknown");
+  }
+}
+
+function skillSourceLabel(t: TranslateFn, sourceType?: string | null) {
+  switch ((sourceType || "").toLowerCase()) {
+    case "uploaded":
+      return t("instances.skillSourceUploaded");
+    case "discovered":
+      return t("instances.skillSourceDiscovered");
+    default:
+      return sourceType || t("instances.notAvailable");
+  }
+}
+
 const InstanceDetailPage: React.FC = () => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const instanceId = id ? Number(id) : null;
@@ -121,6 +154,10 @@ const InstanceDetailPage: React.FC = () => {
     networkDown: [],
     networkUp: [],
   });
+  const [instanceSkills, setInstanceSkills] = useState<InstanceSkill[]>([]);
+  const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
+  const [selectedSkillId, setSelectedSkillId] = useState<number | "">("");
+  const [instanceSkillPage, setInstanceSkillPage] = useState(1);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
   const timelineItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -251,6 +288,36 @@ const InstanceDetailPage: React.FC = () => {
     if (!instanceId || Number.isNaN(instanceId)) {
       return;
     }
+    const loadSkills = async () => {
+      try {
+        const [instanceSkillItems, reusableSkills] = await Promise.all([
+          skillService.listInstanceSkills(instanceId),
+          skillService.listSkills(),
+        ]);
+        setInstanceSkills(instanceSkillItems);
+        setAvailableSkills(
+          reusableSkills.filter(
+            (item) =>
+              item.status === "active" &&
+              item.risk_level !== "medium" &&
+              item.risk_level !== "high",
+          ),
+        );
+      } catch (skillError) {
+        console.error("Failed to load skill data", skillError);
+      }
+    };
+    void loadSkills();
+  }, [instanceId]);
+
+  useEffect(() => {
+    setInstanceSkillPage(1);
+  }, [instanceSkills.length]);
+
+  useEffect(() => {
+    if (!instanceId || Number.isNaN(instanceId)) {
+      return;
+    }
 
     const metaTimer = window.setInterval(() => {
       if (document.hidden) {
@@ -294,6 +361,19 @@ const InstanceDetailPage: React.FC = () => {
       window.clearTimeout(timeout);
     };
   }, [runtimeBurstUntil]);
+
+  const instanceSkillTotalPages = Math.max(
+    1,
+    Math.ceil(instanceSkills.length / INSTANCE_SKILL_PAGE_SIZE),
+  );
+  const currentInstanceSkillPage = Math.min(
+    instanceSkillPage,
+    instanceSkillTotalPages,
+  );
+  const paginatedInstanceSkills = instanceSkills.slice(
+    (currentInstanceSkillPage - 1) * INSTANCE_SKILL_PAGE_SIZE,
+    currentInstanceSkillPage * INSTANCE_SKILL_PAGE_SIZE,
+  );
 
   useEffect(() => {
     const snapshot = extractMetricSnapshot(runtimeDetails?.runtime?.system_info);
@@ -416,7 +496,7 @@ const InstanceDetailPage: React.FC = () => {
     } catch (err: any) {
       alert(
         err.response?.data?.error ||
-          `Failed to queue runtime command: ${command}`,
+          t("instances.runtimeCommandFailed", { command }),
       );
     } finally {
       setActionLoading(null);
@@ -458,6 +538,47 @@ const InstanceDetailPage: React.FC = () => {
       if (importInputRef.current) {
         importInputRef.current.value = "";
       }
+      setActionLoading(null);
+    }
+  };
+
+  const refreshSkills = useCallback(async () => {
+    if (!instanceId || Number.isNaN(instanceId)) {
+      return;
+    }
+    const items = await skillService.listInstanceSkills(instanceId);
+    setInstanceSkills(items);
+  }, [instanceId]);
+
+  const handleAttachSkill = async () => {
+    if (!instanceId || Number.isNaN(instanceId) || selectedSkillId === "") {
+      return;
+    }
+    try {
+      setActionLoading("attach-skill");
+      await skillService.attachSkillToInstance(instanceId, Number(selectedSkillId));
+      setSelectedSkillId("");
+      await refreshSkills();
+      setRuntimeBurstUntil(Date.now() + RUNTIME_BURST_WINDOW_MS);
+    } catch (err: any) {
+      alert(err.response?.data?.error || t("instances.failedToAttachSkill"));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRemoveSkill = async (skillId: number) => {
+    if (!instanceId || Number.isNaN(instanceId)) {
+      return;
+    }
+    try {
+      setActionLoading(`remove-skill-${skillId}`);
+      await skillService.removeSkillFromInstance(instanceId, skillId);
+      await refreshSkills();
+      setRuntimeBurstUntil(Date.now() + RUNTIME_BURST_WINDOW_MS);
+    } catch (err: any) {
+      alert(err.response?.data?.error || t("instances.failedToRemoveSkill"));
+    } finally {
       setActionLoading(null);
     }
   };
@@ -540,6 +661,7 @@ const InstanceDetailPage: React.FC = () => {
     networkInfo,
     metricHistory,
     sessionStartedAt: metricSessionStartedAt,
+    t,
   });
   const timelineItems = buildTimelineItems(
     instance,
@@ -547,6 +669,8 @@ const InstanceDetailPage: React.FC = () => {
     runtime,
     agent,
     commands,
+    locale,
+    t,
   );
 
   const canControlGateway = effectiveInstanceStatus === "running";
@@ -596,10 +720,10 @@ const InstanceDetailPage: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <RefreshState
-                active={metaRefreshing || runtimeRefreshing}
-                label="Live"
-              />
+                <RefreshState
+                  active={metaRefreshing || runtimeRefreshing}
+                  label={t("instances.live")}
+                />
               {effectiveInstanceStatus === "running" ? (
                 <button
                   onClick={() => handleAction("stop")}
@@ -651,12 +775,16 @@ const InstanceDetailPage: React.FC = () => {
                   instanceId={instance.id}
                   instanceName={instance.name}
                   isRunning={effectiveInstanceStatus === "running"}
-                />
-                <OpenClawDesktopOverlay
-                  gatewayStatus={gatewayStatus}
-                  canControl={canControlGateway}
-                  actionLoading={actionLoading}
-                  onCommand={handleRuntimeCommand}
+                  overlay={
+                    instance.type === "openclaw"
+                      ? {
+                          gatewayStatus,
+                          canControl: canControlGateway,
+                          actionLoading,
+                          onCommand: handleRuntimeCommand,
+                        }
+                      : undefined
+                  }
                 />
               </div>
             </section>
@@ -666,14 +794,13 @@ const InstanceDetailPage: React.FC = () => {
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="max-w-xl">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b09d93]">
-                      Workspace
+                      {t("instances.workspaceSection")}
                     </p>
                     <h2 className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#1d1713]">
-                      OpenClaw import and export
+                      {t("instances.openClawWorkspace")}
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-[#7a6d66]">
-                      Move the current workspace in or out without leaving this
-                      page.
+                      {t("instances.openClawWorkspaceDesc")}
                     </p>
                   </div>
 
@@ -724,33 +851,31 @@ const InstanceDetailPage: React.FC = () => {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b09d93]">
-                    Kubernetes
+                    {t("instances.kubernetesSection")}
                   </p>
                   <h2 className="mt-2 text-[1.5rem] font-semibold tracking-[-0.03em] text-[#1d1713]">
-                    Pod and infrastructure status
+                    {t("instances.kubernetesStatusTitle")}
                   </h2>
                 </div>
-                <RefreshState active={metaRefreshing} label="Infra ready" />
+                <RefreshState active={metaRefreshing} label={t("instances.infrastructureReady")} />
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <DetailCard
                   label={t("instances.podName")}
-                  value={status?.pod_name || instance.pod_name || "N/A"}
+                  value={status?.pod_name || instance.pod_name || t("instances.notAvailable")}
                 />
                 <DetailCard
                   label={t("instances.namespace")}
-                  value={
-                    status?.pod_namespace || instance.pod_namespace || "N/A"
-                  }
+                  value={status?.pod_namespace || instance.pod_namespace || t("instances.notAvailable")}
                 />
                 <DetailCard
                   label={t("instances.podStatus")}
-                  value={status?.pod_status || status?.status || "N/A"}
+                  value={status?.pod_status || status?.status || t("instances.notAvailable")}
                 />
                 <DetailCard
                   label={t("instances.podIp")}
-                  value={status?.pod_ip || instance.pod_ip || "N/A"}
+                  value={status?.pod_ip || instance.pod_ip || t("instances.notAvailable")}
                 />
                 <DetailCard label={t("common.type")} value={instance.type} />
                 <DetailCard
@@ -775,19 +900,144 @@ const InstanceDetailPage: React.FC = () => {
               </div>
             </section>
 
+            {instance.type === "openclaw" && (
+              <section className="app-panel px-6 py-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b09d93]">
+                      {t("instances.skillsSection")}
+                    </p>
+                    <h2 className="mt-2 text-[1.5rem] font-semibold tracking-[-0.03em] text-[#1d1713]">
+                      {t("instances.skillManagement")}
+                    </h2>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={selectedSkillId}
+                      onChange={(event) => setSelectedSkillId(event.target.value ? Number(event.target.value) : "")}
+                      className="app-input min-w-[220px]"
+                    >
+                      <option value="">{t("instances.selectSkill")}</option>
+                      {availableSkills.map((skill) => (
+                        <option key={skill.id} value={skill.id}>
+                          {skill.name} ({skill.skill_key})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleAttachSkill}
+                      disabled={selectedSkillId === "" || actionLoading === "attach-skill"}
+                      className="app-button-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {actionLoading === "attach-skill" ? t("instances.installingSkill") : t("instances.installSkill")}
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-5 space-y-3">
+                  {instanceSkills.length === 0 ? (
+                    <div className="rounded-[22px] border border-dashed border-[#e7d9d1] bg-[#fffaf7] px-5 py-6 text-sm text-[#7a6d66]">
+                      {t("instances.noSkillsReported")}
+                    </div>
+                  ) : (
+                    <>
+                      {paginatedInstanceSkills.map((item) => (
+                        <div
+                          key={`${item.skill_id}-${item.id}`}
+                          className="rounded-[22px] border border-[#efe2d8] bg-[#fffaf7] px-5 py-4 shadow-[0_20px_40px_-36px_rgba(72,44,24,0.42)]"
+                        >
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-base font-semibold text-[#1d1713]">
+                                  {item.skill?.name || t("instances.skillFallback", { id: item.skill_id })}
+                                </span>
+                                <span className="rounded-full border border-[#ead8cf] bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f776b]">
+                                  {skillSourceLabel(t, item.source_type)}
+                                </span>
+                                <span className="rounded-full border border-[#ead8cf] bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f776b]">
+                                  {skillRiskLabel(t, item.skill?.risk_level)}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-sm text-[#6f6158]">
+                                {item.skill?.skill_key || item.skill_id}
+                                {item.install_path ? ` · ${item.install_path}` : ""}
+                                {item.last_seen_at ? ` · ${t("instances.lastSeenAt", { value: formatDateTime(item.last_seen_at, locale, t) })}` : ""}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSkill(item.skill_id)}
+                              disabled={actionLoading === `remove-skill-${item.skill_id}`}
+                              className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {actionLoading === `remove-skill-${item.skill_id}` ? t("instances.removingSkill") : t("instances.removeSkill")}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {instanceSkillTotalPages > 1 ? (
+                        <div className="flex flex-col gap-3 border-t border-[#f0e4dc] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="text-sm text-[#8a7b72]">
+                            {t("instances.skillPagination", {
+                              from: (currentInstanceSkillPage - 1) * INSTANCE_SKILL_PAGE_SIZE + 1,
+                              to: Math.min(
+                                currentInstanceSkillPage * INSTANCE_SKILL_PAGE_SIZE,
+                                instanceSkills.length,
+                              ),
+                              total: instanceSkills.length,
+                            })}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setInstanceSkillPage((current) =>
+                                  Math.max(1, current - 1),
+                                )
+                              }
+                              disabled={currentInstanceSkillPage <= 1}
+                              className="app-button-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {t("instances.previous")}
+                            </button>
+                            <div className="min-w-[76px] text-center text-sm font-medium text-[#5f5957]">
+                              {currentInstanceSkillPage} / {instanceSkillTotalPages}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setInstanceSkillPage((current) =>
+                                  Math.min(instanceSkillTotalPages, current + 1),
+                                )
+                              }
+                              disabled={currentInstanceSkillPage >= instanceSkillTotalPages}
+                              className="app-button-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {t("instances.nextPage")}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+
             <section className="app-panel px-6 py-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b09d93]">
-                    Timeline
+                    {t("instances.timeline")}
                   </p>
                   <h2 className="mt-2 text-[1.5rem] font-semibold tracking-[-0.03em] text-[#1d1713]">
-                    Instance operations and runtime history
+                    {t("instances.timelineSubtitle")}
                   </h2>
                 </div>
                 <RefreshState
                   active={runtimeRefreshing}
-                  label={`${timelineItems.length} events`}
+                  label={t("instances.timelineEvents", { count: timelineItems.length })}
                 />
               </div>
 
@@ -799,7 +1049,7 @@ const InstanceDetailPage: React.FC = () => {
                   <div className="space-y-4">
                     {timelineItems.length === 0 ? (
                       <div className="rounded-[24px] border border-dashed border-[#e7d9d1] bg-[#fffaf7] px-5 py-8 text-sm text-[#7a6d66]">
-                        No runtime activity yet.
+                        {t("instances.noRuntimeActivity")}
                       </div>
                     ) : (
                       timelineItems.map((item) => (
@@ -839,7 +1089,7 @@ const InstanceDetailPage: React.FC = () => {
 
                 <div className="rounded-[24px] border border-[#efe2d8] bg-[#fffaf7] px-3 py-4">
                   <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b09d93]">
-                    Minimap
+                    {t("instances.minimap")}
                   </p>
                   <div className="mt-4 flex max-h-[500px] flex-col items-center gap-3 overflow-y-auto">
                     {timelineItems.map((item, index) => (
@@ -874,13 +1124,13 @@ const InstanceDetailPage: React.FC = () => {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b46c50]">
-                    Runtime Summary
+                    {t("instances.runtimeSummary")}
                   </p>
                   <h2 className="mt-2 text-[1.55rem] font-semibold tracking-[-0.04em] text-[#1d1713]">
-                    Agent reported status
+                    {t("instances.agentReportedStatus")}
                   </h2>
                 </div>
-                <RefreshState active={runtimeRefreshing} label="Fresh" />
+                <RefreshState active={runtimeRefreshing} label={t("instances.fresh")} />
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
@@ -891,7 +1141,7 @@ const InstanceDetailPage: React.FC = () => {
 
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <SummaryMetricCard
-                  label="OS"
+                  label={t("instances.operatingSystemShort")}
                   value={formatMetricValue(
                     firstValue(
                       osInfo?.os_release,
@@ -899,58 +1149,59 @@ const InstanceDetailPage: React.FC = () => {
                       systemInfo?.hostname,
                       agent?.host_info?.hostname,
                     ),
+                    t,
                   )}
                 />
                 <SummaryMetricCard
-                  label="OpenClaw"
-                  value={formatMetricValue(runtime?.openclaw_version)}
+                  label={t("instances.openClawShort")}
+                  value={formatMetricValue(runtime?.openclaw_version, t)}
                 />
                 <SummaryMetricCard
-                  label="Skills"
-                  value={formatCountValue(skillCount)}
+                  label={t("instances.skillsSection")}
+                  value={formatCountValue(skillCount, t)}
                 />
                 <SummaryMetricCard
-                  label="Agents"
-                  value={formatCountValue(agentCount)}
+                  label={t("instances.agents")}
+                  value={formatCountValue(agentCount, t)}
                 />
                 <SummaryMetricCard
-                  label="Channels"
-                  value={formatCountValue(channelCount)}
+                  label={t("instances.channels")}
+                  value={formatCountValue(channelCount, t)}
                 />
               </div>
 
               <div className="mt-5 rounded-[24px] border border-[#ead8cf] bg-white/82 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge
-                    label={`Agent ${agent?.status || runtime?.agent_status || "offline"}`}
+                    label={t("instances.agentStatusLabel", { status: agent?.status || runtime?.agent_status || "offline" })}
                     status={agent?.status || runtime?.agent_status || "offline"}
                   />
                   <StatusBadge
-                    label={`Gateway ${gatewayStatus}`}
+                    label={t("instances.gatewayStatusLabel", { status: gatewayStatus })}
                     status={gatewayStatus}
                   />
                 </div>
                 <dl className="mt-4 grid gap-3 text-sm text-[#4d4039]">
-                  <MetaRow label="Agent ID" value={agent?.agent_id || "N/A"} />
+                  <MetaRow label={t("instances.agentId")} value={agent?.agent_id || t("instances.notAvailable")} />
                   <MetaRow
-                    label="Agent Version"
-                    value={agent?.agent_version || "N/A"}
+                    label={t("instances.agentVersion")}
+                    value={agent?.agent_version || t("instances.notAvailable")}
                   />
                   <MetaRow
-                    label="Protocol"
-                    value={agent?.protocol_version || "N/A"}
+                    label={t("instances.protocol")}
+                    value={agent?.protocol_version || t("instances.notAvailable")}
                   />
                   <MetaRow
-                    label="Last heartbeat"
-                    value={formatDateTime(agent?.last_heartbeat_at)}
+                    label={t("instances.lastHeartbeat")}
+                    value={formatDateTime(agent?.last_heartbeat_at, locale, t)}
                   />
                   <MetaRow
-                    label="Last report"
-                    value={formatDateTime(runtime?.last_reported_at)}
+                    label={t("instances.lastReport")}
+                    value={formatDateTime(runtime?.last_reported_at, locale, t)}
                   />
                   <MetaRow
-                    label="Pod IP"
-                    value={status?.pod_ip || instance.pod_ip || "N/A"}
+                    label={t("instances.podIp")}
+                    value={status?.pod_ip || instance.pod_ip || t("instances.notAvailable")}
                   />
                 </dl>
               </div>
@@ -1304,76 +1555,89 @@ function buildTimelineItems(
   runtime: RuntimeStatus | undefined,
   agent: AgentInfo | undefined,
   commands: InstanceRuntimeCommand[],
+  locale: string,
+  t: TranslateFn,
 ): TimelineItem[] {
   const items: TimelineItem[] = [];
 
   items.push({
     id: `instance-created-${instance.id}`,
-    title: "Instance created",
-    detail: `${instance.name} was provisioned as ${instance.type}.`,
+    title: t("instances.timelineInstanceCreated"),
+    detail: t("instances.timelineInstanceCreatedDetail", {
+      name: instance.name,
+      type: instance.type,
+    }),
     timestamp: new Date(instance.created_at).getTime(),
-    stampLabel: formatDateTime(instance.created_at),
+    stampLabel: formatDateTime(instance.created_at, locale, t),
     tone: "bg-[#6366f1]",
-    section: "instance",
+    section: t("instances.timelineSectionInstance"),
   });
 
   if (instance.started_at) {
     items.push({
       id: `instance-started-${instance.id}`,
-      title: "Instance started",
-      detail: "Infrastructure start was recorded for this instance.",
+      title: t("instances.timelineInstanceStarted"),
+      detail: t("instances.timelineInstanceStartedDetail"),
       timestamp: new Date(instance.started_at).getTime(),
-      stampLabel: formatDateTime(instance.started_at),
+      stampLabel: formatDateTime(instance.started_at, locale, t),
       tone: "bg-[#22c55e]",
-      section: "infra",
+      section: t("instances.timelineSectionInfra"),
     });
   }
 
   if (instance.stopped_at) {
     items.push({
       id: `instance-stopped-${instance.id}`,
-      title: "Instance stopped",
-      detail: "Infrastructure stop was recorded for this instance.",
+      title: t("instances.timelineInstanceStopped"),
+      detail: t("instances.timelineInstanceStoppedDetail"),
       timestamp: new Date(instance.stopped_at).getTime(),
-      stampLabel: formatDateTime(instance.stopped_at),
+      stampLabel: formatDateTime(instance.stopped_at, locale, t),
       tone: "bg-[#94a3b8]",
-      section: "infra",
+      section: t("instances.timelineSectionInfra"),
     });
   }
 
   if (agent?.registered_at) {
     items.push({
       id: `agent-registered-${instance.id}`,
-      title: "Agent registered",
-      detail: `${agent.agent_id} connected to ClawManager using protocol ${agent.protocol_version}.`,
+      title: t("instances.timelineAgentRegistered"),
+      detail: t("instances.timelineAgentRegisteredDetail", {
+        agentId: agent.agent_id,
+        protocol: agent.protocol_version,
+      }),
       timestamp: new Date(agent.registered_at).getTime(),
-      stampLabel: formatDateTime(agent.registered_at),
+      stampLabel: formatDateTime(agent.registered_at, locale, t),
       tone: "bg-[#3b82f6]",
-      section: "agent",
+      section: t("instances.timelineSectionAgent"),
     });
   }
 
   if (runtime?.last_reported_at) {
     items.push({
       id: `runtime-report-${instance.id}`,
-      title: "Runtime status reported",
-      detail: `Agent reported gateway status ${runtime.openclaw_status} and infra status ${runtime.infra_status}.`,
+      title: t("instances.timelineRuntimeReported"),
+      detail: t("instances.timelineRuntimeReportedDetail", {
+        gatewayStatus: runtime.openclaw_status,
+        infraStatus: runtime.infra_status,
+      }),
       timestamp: new Date(runtime.last_reported_at).getTime(),
-      stampLabel: formatDateTime(runtime.last_reported_at),
+      stampLabel: formatDateTime(runtime.last_reported_at, locale, t),
       tone: "bg-[#f59e0b]",
-      section: "runtime",
+      section: t("instances.timelineSectionRuntime"),
     });
   }
 
   if (status?.pod_status && status.created_at) {
     items.push({
       id: `pod-status-${instance.id}`,
-      title: "Pod status observed",
-      detail: `Kubernetes currently reports pod status ${status.pod_status}.`,
+      title: t("instances.timelinePodStatusObserved"),
+      detail: t("instances.timelinePodStatusObservedDetail", {
+        status: status.pod_status,
+      }),
       timestamp: new Date(status.created_at).getTime(),
-      stampLabel: formatDateTime(status.created_at),
+      stampLabel: formatDateTime(status.created_at, locale, t),
       tone: "bg-[#a855f7]",
-      section: "k8s",
+      section: t("instances.timelineSectionKubernetes"),
     });
   }
 
@@ -1385,14 +1649,20 @@ function buildTimelineItems(
       command.issued_at;
     items.push({
       id: `command-${command.id}`,
-      title: formatCommandTitle(command.command_type),
+      title: formatCommandTitle(command.command_type, locale),
       detail: command.error_message
-        ? `${command.status}: ${command.error_message}`
-        : `${command.status} · idempotency ${command.idempotency_key}`,
+        ? t("instances.timelineCommandWithError", {
+            status: command.status,
+            error: command.error_message,
+          })
+        : t("instances.timelineCommandWithIdempotency", {
+            status: command.status,
+            key: command.idempotency_key,
+          }),
       timestamp: new Date(commandTime).getTime(),
-      stampLabel: formatDateTime(commandTime),
+      stampLabel: formatDateTime(commandTime, locale, t),
       tone: commandTone(command.status),
-      section: "command",
+      section: t("instances.timelineSectionCommand"),
     });
   });
 
@@ -1401,22 +1671,26 @@ function buildTimelineItems(
     .sort((left, right) => right.timestamp - left.timestamp);
 }
 
-function formatDateTime(value?: string) {
+function formatDateTime(
+  value: string | undefined,
+  locale: string,
+  t: TranslateFn,
+) {
   if (!value) {
-    return "N/A";
+    return t("instances.notAvailable");
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return date.toLocaleString();
+  return date.toLocaleString(locale);
 }
 
-function formatCommandTitle(commandType: string) {
+function formatCommandTitle(commandType: string, locale: string) {
   return commandType
     .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    .replace(/\b\w/g, (char) => char.toLocaleUpperCase(locale));
 }
 
 function commandTone(status: string) {
@@ -1456,7 +1730,7 @@ function firstNumber(...values: unknown[]): number | null {
   return null;
 }
 
-function formatCountValue(value: unknown): string {
+function formatCountValue(value: unknown, t: TranslateFn): string {
   if (Array.isArray(value)) {
     return `${value.length}`;
   }
@@ -1472,7 +1746,7 @@ function formatCountValue(value: unknown): string {
       return `${count}`;
     }
   }
-  return "N/A";
+  return t("instances.notAvailable");
 }
 
 function asRecord(value: unknown): Record<string, any> | undefined {
@@ -1499,16 +1773,16 @@ function getArray(value: unknown): any[] {
   return Array.isArray(value) ? value : [];
 }
 
-function bytesToGB(value: number | null): string {
+function bytesToGB(value: number | null, t: TranslateFn): string {
   if (value === null) {
-    return "N/A";
+    return t("instances.notAvailable");
   }
   return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
-function percentLabel(value: number | null): string {
+function percentLabel(value: number | null, t: TranslateFn): string {
   if (value === null) {
-    return "N/A";
+    return t("instances.notAvailable");
   }
   return `${Math.round(value)}%`;
 }
@@ -1520,6 +1794,7 @@ function buildMetricCurves({
   networkInfo,
   metricHistory,
   sessionStartedAt,
+  t,
 }: {
   cpuInfo?: Record<string, any>;
   memoryInfo?: Record<string, any>;
@@ -1527,6 +1802,7 @@ function buildMetricCurves({
   networkInfo?: Record<string, any>;
   metricHistory: MetricHistory;
   sessionStartedAt: number;
+  t: TranslateFn;
 }): MetricCurve[] {
   const cores = getNumber(cpuInfo?.cores) || 1;
   const cpuLoad = asRecord(cpuInfo?.load);
@@ -1615,34 +1891,51 @@ function buildMetricCurves({
 
   return [
     {
-      label: "CPU",
-      value: percentLabel(cpuCurrent),
-      detail: `${cores} cores · load 1m ${formatNumber(getNumber(cpuLoad?.["1m"]))} · 5m ${formatNumber(getNumber(cpuLoad?.["5m"]))} · 15m ${formatNumber(getNumber(cpuLoad?.["15m"]))}`,
+      label: t("instances.metricCpu"),
+      value: percentLabel(cpuCurrent, t),
+      detail: t("instances.metricCpuDetail", {
+        cores,
+        load1: formatNumber(getNumber(cpuLoad?.["1m"]), t),
+        load5: formatNumber(getNumber(cpuLoad?.["5m"]), t),
+        load15: formatNumber(getNumber(cpuLoad?.["15m"]), t),
+      }),
       accent: "#f97316",
       points: cpuSeries,
     },
     {
-      label: "Memory",
-      value: percentLabel(memUsedPercent),
-      detail: `${bytesToGB(memTotal !== null && memAvailable !== null ? memTotal - memAvailable : null)} used / ${bytesToGB(memTotal)}`,
+      label: t("instances.metricMemory"),
+      value: percentLabel(memUsedPercent, t),
+      detail: t("instances.metricMemoryDetail", {
+        used: bytesToGB(
+          memTotal !== null && memAvailable !== null ? memTotal - memAvailable : null,
+          t,
+        ),
+        total: bytesToGB(memTotal, t),
+      }),
       accent: "#3b82f6",
       points: memorySeries,
     },
     {
-      label: "Disk",
-      value: percentLabel(diskUsedPercent),
-      detail: `${bytesToGB(diskFree)} free / ${bytesToGB(diskTotal)}`,
+      label: t("instances.metricDisk"),
+      value: percentLabel(diskUsedPercent, t),
+      detail: t("instances.metricDiskDetail", {
+        free: bytesToGB(diskFree, t),
+        total: bytesToGB(diskTotal, t),
+      }),
       accent: "#d97706",
       points: diskSeries,
     },
     {
-      label: "Network",
+      label: t("instances.metricNetwork"),
       value:
-        formatTrafficPair(networkTraffic) ||
+        formatTrafficPair(networkTraffic, t) ||
         `${activeInterfaces}/${interfaceCount || 0}`,
       detail:
-        formatTrafficDetail(networkTraffic) ||
-        `${totalAddresses} addresses across ${interfaceCount} interfaces`,
+        formatTrafficDetail(networkTraffic, t) ||
+        t("instances.metricNetworkDetail", {
+          addresses: totalAddresses,
+          interfaces: interfaceCount,
+        }),
       accent: "#14b8a6",
       secondaryAccent:
         networkTraffic.down !== null || networkTraffic.up !== null
@@ -1655,8 +1948,8 @@ function buildMetricCurves({
       legend:
         networkTraffic.down !== null || networkTraffic.up !== null
           ? [
-              { label: "Down", accent: "#14b8a6" },
-              { label: "Up", accent: "#3b82f6" },
+              { label: t("instances.metricLegendDown"), accent: "#14b8a6" },
+              { label: t("instances.metricLegendUp"), accent: "#3b82f6" },
             ]
           : undefined,
       preNormalized:
@@ -1834,16 +2127,16 @@ function normalizePoints(points: number[]): number[] {
   return safe.map((point) => Math.max(point / max, 0.08));
 }
 
-function formatNumber(value: number | null): string {
+function formatNumber(value: number | null, t: TranslateFn): string {
   if (value === null) {
-    return "N/A";
+    return t("instances.notAvailable");
   }
   return value.toFixed(2);
 }
 
-function formatBytesCompact(value: number | null): string {
+function formatBytesCompact(value: number | null, t: TranslateFn): string {
   if (value === null) {
-    return "N/A";
+    return t("instances.notAvailable");
   }
 
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -1859,21 +2152,24 @@ function formatBytesCompact(value: number | null): string {
 function formatTrafficPair(traffic: {
   down: number | null;
   up: number | null;
-}) {
+}, t: TranslateFn) {
   if (traffic.down === null && traffic.up === null) {
     return "";
   }
-  return `↓ ${formatBytesCompact(traffic.down)} ↑ ${formatBytesCompact(traffic.up)}`;
+  return `↓ ${formatBytesCompact(traffic.down, t)} ↑ ${formatBytesCompact(traffic.up, t)}`;
 }
 
 function formatTrafficDetail(traffic: {
   down: number | null;
   up: number | null;
-}) {
+}, t: TranslateFn) {
   if (traffic.down === null && traffic.up === null) {
     return "";
   }
-  return `Inbound ${formatBytesCompact(traffic.down)} · Outbound ${formatBytesCompact(traffic.up)}`;
+  return t("instances.metricTrafficDetail", {
+    inbound: formatBytesCompact(traffic.down, t),
+    outbound: formatBytesCompact(traffic.up, t),
+  });
 }
 
 function appendMetricSample(
@@ -1962,23 +2258,23 @@ function extractMetricSnapshot(systemInfoValue: unknown) {
   };
 }
 
-function formatMetricValue(value: unknown): string {
+function formatMetricValue(value: unknown, t: TranslateFn): string {
   if (value === null || value === undefined) {
-    return "N/A";
+    return t("instances.notAvailable");
   }
   if (typeof value === "string") {
-    return value.trim() || "N/A";
+    return value.trim() || t("instances.notAvailable");
   }
   if (typeof value === "number" || typeof value === "boolean") {
     return `${value}`;
   }
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return "N/A";
+      return t("instances.notAvailable");
     }
     return value
-      .map((item) => formatMetricValue(item))
-      .filter((item) => item !== "N/A")
+      .map((item) => formatMetricValue(item, t))
+      .filter((item) => item !== t("instances.notAvailable"))
       .join(", ");
   }
 
@@ -1996,13 +2292,13 @@ function formatMetricValue(value: unknown): string {
   );
 
   if (label !== undefined) {
-    return formatMetricValue(label);
+    return formatMetricValue(label, t);
   }
 
   try {
     return JSON.stringify(record);
   } catch {
-    return "N/A";
+    return t("instances.notAvailable");
   }
 }
 

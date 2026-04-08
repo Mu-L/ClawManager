@@ -1,4 +1,5 @@
 import type { OpenClawConfigPlan } from "./openclawConfig";
+import type { InstanceSkill } from "./skill";
 
 export interface Instance {
   id: number;
@@ -88,6 +89,7 @@ export interface InstanceRuntimeDetails {
   runtime?: RuntimeStatus;
   agent?: AgentInfo;
   commands: InstanceRuntimeCommand[];
+  skills?: InstanceSkill[];
 }
 
 export interface InstanceConfigRevision {
@@ -119,6 +121,7 @@ export interface CreateInstanceRequest {
   image_tag?: string;
   storage_class?: string;
   openclaw_config_plan?: OpenClawConfigPlan;
+  skill_ids?: number[];
 }
 
 export interface UpdateInstanceRequest {

@@ -26,10 +26,11 @@ type InstanceHandler struct {
 	proxyService                  *services.InstanceProxyService
 	openClawTransferService       services.OpenClawTransferService
 	openClawConfigService         services.OpenClawConfigService
+	skillService                  services.SkillService
 }
 
 // NewInstanceHandler creates a new instance handler
-func NewInstanceHandler(instanceService services.InstanceService, instanceAgentService services.InstanceAgentService, runtimeStatusService services.InstanceRuntimeStatusService, instanceCommandService services.InstanceCommandService, instanceConfigRevisionService services.InstanceConfigRevisionService, openClawConfigService services.OpenClawConfigService) *InstanceHandler {
+func NewInstanceHandler(instanceService services.InstanceService, instanceAgentService services.InstanceAgentService, runtimeStatusService services.InstanceRuntimeStatusService, instanceCommandService services.InstanceCommandService, instanceConfigRevisionService services.InstanceConfigRevisionService, openClawConfigService services.OpenClawConfigService, skillService services.SkillService) *InstanceHandler {
 	accessService := services.NewInstanceAccessService()
 	return &InstanceHandler{
 		instanceService:               instanceService,
@@ -41,6 +42,7 @@ func NewInstanceHandler(instanceService services.InstanceService, instanceAgentS
 		proxyService:                  services.NewInstanceProxyService(accessService),
 		openClawTransferService:       services.NewOpenClawTransferService(),
 		openClawConfigService:         openClawConfigService,
+		skillService:                  skillService,
 	}
 }
 
@@ -74,6 +76,7 @@ type CreateInstanceRequest struct {
 	ImageTag           *string                      `json:"image_tag,omitempty"`
 	StorageClass       string                       `json:"storage_class"`
 	OpenClawConfigPlan *services.OpenClawConfigPlan `json:"openclaw_config_plan,omitempty"`
+	SkillIDs           []int                        `json:"skill_ids,omitempty"`
 }
 
 // UpdateInstanceRequest represents an update instance request
@@ -150,6 +153,13 @@ func (h *InstanceHandler) CreateInstance(c *gin.Context) {
 	if err != nil {
 		utils.HandleError(c, err)
 		return
+	}
+
+	for _, skillID := range req.SkillIDs {
+		if _, err := h.skillService.AttachSkillToInstance(instance.ID, skillID); err != nil {
+			utils.HandleError(c, err)
+			return
+		}
 	}
 
 	utils.Success(c, http.StatusCreated, "Instance created successfully", instance)

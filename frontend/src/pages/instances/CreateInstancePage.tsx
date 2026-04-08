@@ -4,11 +4,13 @@ import OpenClawConfigPlanSection, { type OpenClawInjectionMode } from '../../com
 import UserLayout from '../../components/UserLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { instanceService } from '../../services/instanceService';
+import { skillService } from '../../services/skillService';
 import { userService } from '../../services/userService';
 import { INSTANCE_TYPES, PRESET_CONFIGS } from '../../types/instance';
 import type { CreateInstanceRequest } from '../../types/instance';
 import type { Instance } from '../../types/instance';
 import type { OpenClawConfigCompilePreview } from '../../types/openclawConfig';
+import type { Skill } from '../../types/skill';
 import type { UserQuota } from '../../types/user';
 import { useI18n } from '../../contexts/I18nContext';
 import { systemSettingsService } from '../../services/systemSettingsService';
@@ -32,6 +34,9 @@ const CreateInstancePage: React.FC = () => {
   const [openClawPreview, setOpenClawPreview] = useState<OpenClawConfigCompilePreview | null>(null);
   const [openClawPreviewLoading, setOpenClawPreviewLoading] = useState(false);
   const [openClawPreviewError, setOpenClawPreviewError] = useState<string | null>(null);
+  const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
+  const [skillLoading, setSkillLoading] = useState(false);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<number[]>([]);
   const openClawImportInputRef = useRef<HTMLInputElement | null>(null);
 
   const [formData, setFormData] = useState<CreateInstanceRequest>({
@@ -90,6 +95,22 @@ const CreateInstancePage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const loadSkills = async () => {
+      try {
+        setSkillLoading(true);
+        const items = await skillService.listSkills();
+        setAvailableSkills(items.filter((item) => item.status === 'active' && item.risk_level !== 'medium' && item.risk_level !== 'high'));
+      } catch {
+        setAvailableSkills([]);
+      } finally {
+        setSkillLoading(false);
+      }
+    };
+
+    void loadSkills();
+  }, []);
+
+  useEffect(() => {
     const loadQuotaAndUsage = async () => {
       if (!user) {
         setQuotaLoading(false);
@@ -125,6 +146,7 @@ const CreateInstancePage: React.FC = () => {
         setOpenClawResourceIds([]);
         setOpenClawPreview(null);
         setOpenClawPreviewError(null);
+        setSelectedSkillIds([]);
       }
       setFormData({
         ...formData,
@@ -160,6 +182,7 @@ const CreateInstancePage: React.FC = () => {
       setError(null);
       const createPayload: CreateInstanceRequest = {
         ...formData,
+        skill_ids: formData.type === 'openclaw' ? selectedSkillIds : undefined,
         openclaw_config_plan: formData.type === 'openclaw' && openClawInjectionMode === 'bundle' && openClawBundleId
           ? { mode: 'bundle', bundle_id: openClawBundleId }
           : formData.type === 'openclaw' && openClawInjectionMode === 'manual' && openClawResourceIds.length > 0
@@ -587,6 +610,56 @@ const CreateInstancePage: React.FC = () => {
                     onPreviewChange={handleOpenClawPreviewChange}
                   />
 
+                  <div className="app-panel p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-lg font-medium text-gray-900">Skill Injection</h2>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Select one or more reusable skills to install into this OpenClaw instance.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                        {selectedSkillIds.length} selected
+                      </span>
+                    </div>
+                    <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {skillLoading ? (
+                        <div className="text-sm text-gray-500">Loading skills...</div>
+                      ) : availableSkills.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500">
+                          No available skills. Import skills from the resource center first.
+                        </div>
+                      ) : availableSkills.map((skill) => {
+                        const checked = selectedSkillIds.includes(skill.id);
+                        return (
+                          <label
+                            key={skill.id}
+                            className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 ${
+                              checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => setSelectedSkillIds((current) => (
+                                e.target.checked
+                                  ? [...current, skill.id]
+                                  : current.filter((value) => value !== skill.id)
+                              ))}
+                            />
+                            <span className="min-w-0">
+                              <span className="block font-medium text-gray-900">{skill.name}</span>
+                              <span className="mt-1 block text-xs text-gray-500">
+                                {skill.skill_key} · risk {skill.risk_level} · v{skill.current_version_no || 1}
+                              </span>
+                              {skill.description && <span className="mt-2 block text-sm text-gray-600">{skill.description}</span>}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {openClawInjectionMode === 'archive' && (
                     <div className="app-panel p-6">
                       <div className="flex items-start justify-between gap-4">
@@ -815,5 +888,3 @@ const CreateInstancePage: React.FC = () => {
 };
 
 export default CreateInstancePage;
-
-

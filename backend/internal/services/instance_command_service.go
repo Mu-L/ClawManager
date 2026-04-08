@@ -18,6 +18,16 @@ const (
 	InstanceCommandTypeApplyConfigRevision = "apply_config_revision"
 	InstanceCommandTypeReloadConfig        = "reload_config"
 	InstanceCommandTypeHealthCheck         = "health_check"
+	InstanceCommandTypeInstallSkill        = "install_skill"
+	InstanceCommandTypeUpdateSkill         = "update_skill"
+	InstanceCommandTypeUninstallSkill      = "uninstall_skill"
+	InstanceCommandTypeRemoveSkill         = "remove_skill"
+	InstanceCommandTypeDisableSkill        = "disable_skill"
+	InstanceCommandTypeQuarantineSkill     = "quarantine_skill"
+	InstanceCommandTypeHandleSkillRisk     = "handle_skill_risk"
+	InstanceCommandTypeSyncSkillInventory  = "sync_skill_inventory"
+	InstanceCommandTypeRefreshSkillInventory = "refresh_skill_inventory"
+	InstanceCommandTypeCollectSkillPackage = "collect_skill_package"
 	instanceCommandStatusPending           = "pending"
 	instanceCommandStatusDispatched        = "dispatched"
 	instanceCommandStatusRunning           = "running"
@@ -284,7 +294,17 @@ func isSupportedCommandType(commandType string) bool {
 		InstanceCommandTypeCollectSystemInfo,
 		InstanceCommandTypeApplyConfigRevision,
 		InstanceCommandTypeReloadConfig,
-		InstanceCommandTypeHealthCheck:
+		InstanceCommandTypeHealthCheck,
+		InstanceCommandTypeInstallSkill,
+		InstanceCommandTypeUpdateSkill,
+		InstanceCommandTypeUninstallSkill,
+		InstanceCommandTypeRemoveSkill,
+		InstanceCommandTypeDisableSkill,
+		InstanceCommandTypeQuarantineSkill,
+		InstanceCommandTypeHandleSkillRisk,
+		InstanceCommandTypeSyncSkillInventory,
+		InstanceCommandTypeRefreshSkillInventory,
+		InstanceCommandTypeCollectSkillPackage:
 		return true
 	default:
 		return false

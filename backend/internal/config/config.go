@@ -3,16 +3,19 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 // Config holds all application configuration
 type Config struct {
-	Server     ServerConfig     `yaml:"server"`
-	Database   DatabaseConfig   `yaml:"database"`
-	JWT        JWTConfig        `yaml:"jwt"`
-	Kubernetes KubernetesConfig `yaml:"kubernetes"`
+	Server        ServerConfig        `yaml:"server"`
+	Database      DatabaseConfig      `yaml:"database"`
+	JWT           JWTConfig           `yaml:"jwt"`
+	Kubernetes    KubernetesConfig    `yaml:"kubernetes"`
+	ObjectStorage ObjectStorageConfig `yaml:"objectStorage"`
+	SkillScanner  SkillScannerConfig  `yaml:"skillScanner"`
 }
 
 // ServerConfig holds server-related configuration
@@ -118,6 +121,25 @@ type LoggingConfig struct {
 	LogAPICalls bool   `yaml:"logApiCalls"`
 }
 
+type ObjectStorageConfig struct {
+	Endpoint       string `yaml:"endpoint"`
+	Region         string `yaml:"region"`
+	AccessKey      string `yaml:"accessKey"`
+	SecretKey      string `yaml:"secretKey"`
+	Bucket         string `yaml:"bucket"`
+	UseSSL         bool   `yaml:"useSSL"`
+	BasePath       string `yaml:"basePath"`
+	ForcePathStyle bool   `yaml:"forcePathStyle"`
+	LocalFallback  string `yaml:"localFallback"`
+}
+
+type SkillScannerConfig struct {
+	BaseURL   string `yaml:"baseUrl"`
+	APIKey    string `yaml:"apiKey"`
+	TimeoutSeconds int `yaml:"timeoutSeconds"`
+	Enabled   bool   `yaml:"enabled"`
+}
+
 // Load loads configuration from file and environment variables
 func Load() (*Config, error) {
 	config := &Config{
@@ -174,6 +196,23 @@ func Load() (*Config, error) {
 				Level:       "info",
 				LogAPICalls: false,
 			},
+		},
+		ObjectStorage: ObjectStorageConfig{
+			Endpoint:       getEnv("OBJECT_STORAGE_ENDPOINT", ""),
+			Region:         getEnv("OBJECT_STORAGE_REGION", ""),
+			AccessKey:      getEnv("OBJECT_STORAGE_ACCESS_KEY", ""),
+			SecretKey:      getEnv("OBJECT_STORAGE_SECRET_KEY", ""),
+			Bucket:         getEnv("OBJECT_STORAGE_BUCKET", "clawmanager-skills"),
+			UseSSL:         strings.EqualFold(getEnv("OBJECT_STORAGE_USE_SSL", "false"), "true"),
+			BasePath:       getEnv("OBJECT_STORAGE_BASE_PATH", "skills"),
+			ForcePathStyle: strings.EqualFold(getEnv("OBJECT_STORAGE_FORCE_PATH_STYLE", "true"), "true"),
+			LocalFallback:  getEnv("OBJECT_STORAGE_LOCAL_FALLBACK", ".data/object-storage"),
+		},
+		SkillScanner: SkillScannerConfig{
+			BaseURL: getEnv("SKILL_SCANNER_BASE_URL", ""),
+			APIKey: getEnv("SKILL_SCANNER_API_KEY", ""),
+			TimeoutSeconds: 30,
+			Enabled: strings.EqualFold(getEnv("SKILL_SCANNER_ENABLED", "false"), "true"),
 		},
 	}
 
@@ -262,6 +301,46 @@ func applyEnvOverrides(config *Config) {
 	}
 	if storageClass := os.Getenv("K8S_STORAGE_CLASS"); storageClass != "" {
 		config.Kubernetes.Common.StorageClass = storageClass
+	}
+
+	if endpoint := os.Getenv("OBJECT_STORAGE_ENDPOINT"); endpoint != "" {
+		config.ObjectStorage.Endpoint = endpoint
+	}
+	if region := os.Getenv("OBJECT_STORAGE_REGION"); region != "" {
+		config.ObjectStorage.Region = region
+	}
+	if accessKey := os.Getenv("OBJECT_STORAGE_ACCESS_KEY"); accessKey != "" {
+		config.ObjectStorage.AccessKey = accessKey
+	}
+	if secretKey := os.Getenv("OBJECT_STORAGE_SECRET_KEY"); secretKey != "" {
+		config.ObjectStorage.SecretKey = secretKey
+	}
+	if bucket := os.Getenv("OBJECT_STORAGE_BUCKET"); bucket != "" {
+		config.ObjectStorage.Bucket = bucket
+	}
+	if useSSL := os.Getenv("OBJECT_STORAGE_USE_SSL"); useSSL != "" {
+		config.ObjectStorage.UseSSL = strings.EqualFold(useSSL, "true")
+	}
+	if basePath := os.Getenv("OBJECT_STORAGE_BASE_PATH"); basePath != "" {
+		config.ObjectStorage.BasePath = basePath
+	}
+	if forcePathStyle := os.Getenv("OBJECT_STORAGE_FORCE_PATH_STYLE"); forcePathStyle != "" {
+		config.ObjectStorage.ForcePathStyle = strings.EqualFold(forcePathStyle, "true")
+	}
+	if localFallback := os.Getenv("OBJECT_STORAGE_LOCAL_FALLBACK"); localFallback != "" {
+		config.ObjectStorage.LocalFallback = localFallback
+	}
+	if baseURL := os.Getenv("SKILL_SCANNER_BASE_URL"); baseURL != "" {
+		config.SkillScanner.BaseURL = baseURL
+	}
+	if apiKey := os.Getenv("SKILL_SCANNER_API_KEY"); apiKey != "" {
+		config.SkillScanner.APIKey = apiKey
+	}
+	if enabled := os.Getenv("SKILL_SCANNER_ENABLED"); enabled != "" {
+		config.SkillScanner.Enabled = strings.EqualFold(enabled, "true")
+	}
+	if timeoutSeconds := os.Getenv("SKILL_SCANNER_TIMEOUT_SECONDS"); timeoutSeconds != "" {
+		fmt.Sscanf(timeoutSeconds, "%d", &config.SkillScanner.TimeoutSeconds)
 	}
 }
 

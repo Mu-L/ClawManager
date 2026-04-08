@@ -59,6 +59,8 @@ func main() {
 	instanceDesiredStateRepo := repository.NewInstanceDesiredStateRepository(database)
 	instanceCommandRepo := repository.NewInstanceCommandRepository(database)
 	instanceConfigRevisionRepo := repository.NewInstanceConfigRevisionRepository(database)
+	skillRepo := repository.NewSkillRepository(database)
+	securityScanRepo := repository.NewSecurityScanRepository(database)
 
 	if repaired, repairErr := services.RepairSeededAdminPassword(userRepo); repairErr != nil {
 		log.Printf("Warning: failed to repair seeded admin password: %v", repairErr)
@@ -81,6 +83,11 @@ func main() {
 	riskHitService := services.NewRiskHitService(riskHitRepo)
 	riskRuleService := services.NewRiskRuleService(riskRuleRepo)
 	openClawConfigService := services.NewOpenClawConfigService(openClawConfigRepo)
+	objectStorageService, err := services.NewObjectStorageService(cfg.ObjectStorage)
+	if err != nil {
+		log.Fatalf("Failed to initialize object storage: %v", err)
+	}
+	skillScannerClient := services.NewSkillScannerClient(cfg.SkillScanner)
 	aiObservabilityService := services.NewAIObservabilityService(modelInvocationRepo, auditEventRepo, costRecordRepo, riskHitRepo, chatMessageRepo, llmModelRepo, instanceRepo, userRepo)
 	clusterResourceService := services.NewClusterResourceService(instanceRepo)
 	services.SetRuntimeImageSettingsProvider(systemImageSettingService)
@@ -89,12 +96,14 @@ func main() {
 	instanceRuntimeStatusService := services.NewInstanceRuntimeStatusService(instanceRuntimeStatusRepo, instanceAgentRepo, instanceDesiredStateRepo)
 	instanceCommandService := services.NewInstanceCommandService(instanceCommandRepo, instanceRuntimeStatusRepo, instanceDesiredStateRepo)
 	instanceConfigRevisionService := services.NewInstanceConfigRevisionService(instanceConfigRevisionRepo)
+	skillService := services.NewSkillService(skillRepo, instanceRepo, instanceCommandService, objectStorageService, skillScannerClient)
+	securityScanService := services.NewSecurityScanService(securityScanRepo, skillRepo, objectStorageService, skillScannerClient)
 	aiGatewayService := aigateway.NewService(llmModelRepo, modelInvocationService, auditEventService, costRecordService, riskDetectionService, riskHitService, chatSessionService, chatMessageService)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	userHandler := handlers.NewUserHandler(userService, quotaService)
-	instanceHandler := handlers.NewInstanceHandler(instanceService, instanceAgentService, instanceRuntimeStatusService, instanceCommandService, instanceConfigRevisionService, openClawConfigService)
+	instanceHandler := handlers.NewInstanceHandler(instanceService, instanceAgentService, instanceRuntimeStatusService, instanceCommandService, instanceConfigRevisionService, openClawConfigService, skillService)
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(systemImageSettingService)
 	llmModelHandler := handlers.NewLLMModelHandler(llmModelService)
 	aiGatewayHandler := handlers.NewAIGatewayHandler(aiGatewayService)
@@ -103,7 +112,9 @@ func main() {
 	clusterResourceHandler := handlers.NewClusterResourceHandler(clusterResourceService)
 	egressProxyHandler := handlers.NewEgressProxyHandler()
 	openClawConfigHandler := handlers.NewOpenClawConfigHandler(openClawConfigService)
-	agentHandler := handlers.NewAgentHandler(instanceAgentService, instanceCommandService, instanceRuntimeStatusService, instanceConfigRevisionService)
+	skillHandler := handlers.NewSkillHandler(skillService, instanceService)
+	securityHandler := handlers.NewSecurityHandler(securityScanService)
+	agentHandler := handlers.NewAgentHandler(instanceAgentService, instanceCommandService, instanceRuntimeStatusService, instanceConfigRevisionService, skillService)
 
 	// Initialize WebSocket hub and handler
 	wsHub := services.GetHub()
@@ -183,6 +194,9 @@ func main() {
 			instances.POST("/:id/sync", instanceHandler.ForceSync)
 			instances.GET("/:id/openclaw/export", instanceHandler.ExportOpenClaw)
 			instances.POST("/:id/openclaw/import", instanceHandler.ImportOpenClaw)
+			instances.GET("/:id/skills", skillHandler.ListInstanceSkills)
+			instances.POST("/:id/skills", skillHandler.AttachSkillToInstance)
+			instances.DELETE("/:id/skills/:skillId", skillHandler.RemoveSkillFromInstance)
 		}
 
 		openClawConfigs := api.Group("/openclaw-configs")
@@ -207,6 +221,20 @@ func main() {
 			openClawConfigs.POST("/compile-preview", openClawConfigHandler.CompilePreview)
 			openClawConfigs.GET("/injections", openClawConfigHandler.ListSnapshots)
 			openClawConfigs.GET("/injections/:id", openClawConfigHandler.GetSnapshot)
+		}
+
+		skills := api.Group("/skills")
+		skills.Use(middleware.Auth())
+		skills.Use(middleware.SetUserInfo(userRepo))
+		{
+			skills.GET("", skillHandler.ListSkills)
+			skills.POST("/import", skillHandler.ImportSkills)
+			skills.GET("/:id", skillHandler.GetSkill)
+			skills.PUT("/:id", skillHandler.UpdateSkill)
+			skills.DELETE("/:id", skillHandler.DeleteSkill)
+			skills.GET("/:id/download", skillHandler.DownloadSkill)
+			skills.GET("/:id/versions", skillHandler.ListVersions)
+			skills.GET("/:id/scan-results", skillHandler.ListScanResults)
 		}
 
 		systemSettings := api.Group("/system-settings")
@@ -266,6 +294,27 @@ func main() {
 			adminRiskRules.DELETE("/:ruleId", riskRuleHandler.DeleteRule)
 		}
 
+		adminSkills := api.Group("/admin/skills")
+		adminSkills.Use(middleware.Auth())
+		adminSkills.Use(middleware.SetUserInfo(userRepo))
+		adminSkills.Use(middleware.NewAdminAuth(userRepo))
+		{
+			adminSkills.GET("", skillHandler.ListAllSkills)
+		}
+
+		adminSecurity := api.Group("/admin/security")
+		adminSecurity.Use(middleware.Auth())
+		adminSecurity.Use(middleware.SetUserInfo(userRepo))
+		adminSecurity.Use(middleware.NewAdminAuth(userRepo))
+		{
+			adminSecurity.GET("/config", securityHandler.GetConfig)
+			adminSecurity.PUT("/config", securityHandler.SaveConfig)
+			adminSecurity.POST("/scan-jobs", securityHandler.StartScan)
+			adminSecurity.POST("/skills/:id/rescan", securityHandler.RescanSkill)
+			adminSecurity.GET("/scan-jobs", securityHandler.ListJobs)
+			adminSecurity.GET("/scan-jobs/:id", securityHandler.GetJob)
+		}
+
 		gatewayLLM := api.Group("/gateway/llm")
 		gatewayLLM.Use(middleware.GatewayAuth(instanceRepo))
 		{
@@ -281,6 +330,9 @@ func main() {
 			agent.POST("/commands/:id/start", agentHandler.StartCommand)
 			agent.POST("/commands/:id/finish", agentHandler.FinishCommand)
 			agent.POST("/state/report", agentHandler.ReportState)
+			agent.POST("/skills/inventory", agentHandler.ReportSkillInventory)
+			agent.POST("/skills/upload", agentHandler.UploadSkillPackage)
+			agent.GET("/skills/versions/:skillVersion/download", skillHandler.DownloadSkillVersionForAgent)
 			agent.GET("/config/revisions/:id", agentHandler.GetConfigRevision)
 		}
 

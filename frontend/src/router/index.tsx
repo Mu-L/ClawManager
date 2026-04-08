@@ -17,6 +17,9 @@ import InstanceManagementPage from '../pages/admin/InstanceManagementPage';
 import AIGatewayPage from '../pages/admin/AIGatewayPage';
 import AIAuditPage from '../pages/admin/AIAuditPage';
 import CostsPage from '../pages/admin/CostsPage';
+import AdminSecurityDashboardPage from '../pages/admin/security/AdminSecurityDashboardPage';
+import AdminSecurityReportsPage from '../pages/admin/security/AdminSecurityReportsPage';
+import AdminSecurityScannerConfigPage from '../pages/admin/security/AdminSecurityScannerConfigPage';
 import RiskRulesPage from '../pages/admin/RiskRulesPage';
 import ModelManagementPage from '../pages/admin/ModelManagementPage';
 import SystemSettingsPage from '../pages/admin/SystemSettingsPage';
@@ -221,6 +224,38 @@ function AppRoutes() {
             <InstanceManagementPage />
           </AdminRoute>
         }
+      />
+      <Route
+        path="/admin/security"
+        element={
+          <AdminRoute>
+            <AdminSecurityDashboardPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/security/reports"
+        element={
+          <AdminRoute>
+            <AdminSecurityReportsPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/security/scanner"
+        element={
+          <AdminRoute>
+            <AdminSecurityScannerConfigPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/assets"
+        element={<Navigate to="/admin/security" replace />}
+      />
+      <Route
+        path="/admin/skills"
+        element={<Navigate to="/admin/security" replace />}
       />
       <Route
         path="/admin/ai-gateway"

@@ -7,6 +7,7 @@ import {
   OPENCLAW_CHANNEL_TEMPLATES,
 } from '../../lib/openclawChannelTemplates';
 import { openclawConfigService } from '../../services/openclawConfigService';
+import { skillService } from '../../services/skillService';
 import type {
   OpenClawConfigBundle,
   OpenClawConfigBundleItem,
@@ -18,6 +19,7 @@ import type {
   UpsertOpenClawConfigResourceRequest,
 } from '../../types/openclawConfig';
 import { OPENCLAW_RESOURCE_TYPES } from '../../types/openclawConfig';
+import type { Skill } from '../../types/skill';
 
 type ConfigCenterTab = 'resources' | 'bundles' | 'injections';
 
@@ -25,7 +27,8 @@ const CONFIG_CENTER_HIDDEN_RESOURCE_TYPES: OpenClawResourceType[] = ['session_te
 const CONFIG_CENTER_RESOURCE_TYPES = OPENCLAW_RESOURCE_TYPES.filter(
   (item) => !CONFIG_CENTER_HIDDEN_RESOURCE_TYPES.includes(item.value),
 );
-const CONFIG_CENTER_CONFIGURABLE_RESOURCE_TYPES: OpenClawResourceType[] = ['channel'];
+const CONFIG_CENTER_CONFIGURABLE_RESOURCE_TYPES: OpenClawResourceType[] = ['channel', 'skill'];
+const CONFIG_CENTER_PAGE_SIZE = 8;
 
 const RESOURCE_TYPE_I18N_KEYS: Record<OpenClawResourceType, string> = {
   channel: 'openClawResourcesPage.resourceTypes.channel',
@@ -575,12 +578,28 @@ const bundleFormFromItem = (item: OpenClawConfigBundle) => ({
   itemIds: item.items.map((bundleItem) => bundleItem.resource_id),
 });
 
+const skillRiskKey = (riskLevel?: string | null) => {
+  switch ((riskLevel || '').toLowerCase()) {
+    case 'none':
+      return 'none';
+    case 'low':
+      return 'low';
+    case 'medium':
+      return 'medium';
+    case 'high':
+      return 'high';
+    default:
+      return 'unknown';
+  }
+};
+
 const OpenClawConfigCenterPage: React.FC = () => {
   const { t } = useI18n();
   const [tab, setTab] = useState<ConfigCenterTab>('resources');
   const [resourceType, setResourceType] = useState<OpenClawResourceType>('channel');
   const [resourceSearch, setResourceSearch] = useState('');
   const [resources, setResources] = useState<OpenClawConfigResource[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [bundles, setBundles] = useState<OpenClawConfigBundle[]>([]);
   const [snapshots, setSnapshots] = useState<OpenClawInjectionSnapshot[]>([]);
   const [resourceForm, setResourceForm] = useState(() => newResourceForm('channel'));
@@ -589,23 +608,27 @@ const OpenClawConfigCenterPage: React.FC = () => {
   const [selectedBundleId, setSelectedBundleId] = useState<number | undefined>();
   const [resourceEditorOpen, setResourceEditorOpen] = useState(false);
   const [bundleEditorOpen, setBundleEditorOpen] = useState(false);
+  const [resourcePage, setResourcePage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedChannelTemplateId, setSelectedChannelTemplateId] = useState('');
   const [channelEditorMode, setChannelEditorMode] = useState<ChannelEditorMode>('form');
+  const [skillUploadFile, setSkillUploadFile] = useState<File | null>(null);
 
   const loadAll = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [resourceItems, bundleItems, injectionItems] = await Promise.all([
+      const [resourceItems, skillItems, bundleItems, injectionItems] = await Promise.all([
         openclawConfigService.listResources(),
+        skillService.listSkills(),
         openclawConfigService.listBundles(),
         openclawConfigService.listInjections(50),
       ]);
       setResources(resourceItems);
+      setSkills(skillItems);
       setBundles(bundleItems);
       setSnapshots(injectionItems);
     } catch (err: any) {
@@ -618,6 +641,10 @@ const OpenClawConfigCenterPage: React.FC = () => {
   useEffect(() => {
     loadAll();
   }, []);
+
+  useEffect(() => {
+    setResourcePage(1);
+  }, [resourceType, resourceSearch, tab]);
 
   const filteredResources = useMemo(() => {
     const keyword = resourceSearch.trim().toLowerCase();
@@ -633,6 +660,36 @@ const OpenClawConfigCenterPage: React.FC = () => {
       );
     });
   }, [resourceSearch, resourceType, resources]);
+
+  const filteredSkills = useMemo(() => {
+    const keyword = resourceSearch.trim().toLowerCase();
+    if (!keyword) {
+      return skills;
+    }
+    return skills.filter((item) =>
+      [item.name, item.skill_key, item.description || '', item.risk_level].some((value) =>
+        value.toLowerCase().includes(keyword),
+      ),
+    );
+  }, [resourceSearch, skills]);
+
+  const resourceItemTotal = resourceType === 'skill' ? filteredSkills.length : filteredResources.length;
+  const resourcePageTotal = Math.max(1, Math.ceil(resourceItemTotal / CONFIG_CENTER_PAGE_SIZE));
+  const currentResourcePage = Math.min(resourcePage, resourcePageTotal);
+  const paginatedSkills = useMemo(() => {
+    const start = (currentResourcePage - 1) * CONFIG_CENTER_PAGE_SIZE;
+    return filteredSkills.slice(start, start + CONFIG_CENTER_PAGE_SIZE);
+  }, [currentResourcePage, filteredSkills]);
+  const paginatedResources = useMemo(() => {
+    const start = (currentResourcePage - 1) * CONFIG_CENTER_PAGE_SIZE;
+    return filteredResources.slice(start, start + CONFIG_CENTER_PAGE_SIZE);
+  }, [currentResourcePage, filteredResources]);
+
+  useEffect(() => {
+    if (resourcePage > resourcePageTotal) {
+      setResourcePage(resourcePageTotal);
+    }
+  }, [resourcePage, resourcePageTotal]);
 
   const getResourceTypeLabel = (value: OpenClawResourceType) => t(RESOURCE_TYPE_I18N_KEYS[value]);
   const getChannelTemplateLabel = (templateId: string) => (
@@ -654,6 +711,9 @@ const OpenClawConfigCenterPage: React.FC = () => {
     SNAPSHOT_STATUS_I18N_KEYS[status]
       ? t(SNAPSHOT_STATUS_I18N_KEYS[status])
       : status
+  );
+  const getSkillRiskLabel = (riskLevel?: string | null) => (
+    t(`openClawResourcesPage.risks.${skillRiskKey(riskLevel)}`)
   );
   const resourceTypeOptions = useMemo(() => (
     CONFIG_CENTER_RESOURCE_TYPES.map((item) => ({
@@ -862,6 +922,57 @@ const OpenClawConfigCenterPage: React.FC = () => {
     }
   };
 
+  const uploadSkillArchive = async () => {
+    if (!skillUploadFile) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      setNotice(null);
+      await skillService.importSkills(skillUploadFile);
+      setSkillUploadFile(null);
+      await loadAll();
+      setNotice(t('openClawResourcesPage.notices.skillArchiveImported'));
+    } catch (err: any) {
+      setError(err.response?.data?.error || t('openClawResourcesPage.errors.importSkillArchive'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeSkillAsset = async (skillId: number) => {
+    try {
+      setSaving(true);
+      setError(null);
+      setNotice(null);
+      await skillService.deleteSkill(skillId);
+      await loadAll();
+      setNotice(t('openClawResourcesPage.notices.skillDeleted'));
+    } catch (err: any) {
+      setError(err.response?.data?.error || t('openClawResourcesPage.errors.deleteSkill'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const downloadSkillAsset = async (skillId: number, name: string) => {
+    try {
+      const blob = await skillService.downloadSkill(skillId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${name || 'skill'}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err.response?.data?.error || t('openClawResourcesPage.errors.downloadSkill'));
+    }
+  };
+
   const applyChannelTemplate = (templateId: string) => {
     const template = findOpenClawChannelTemplate(templateId);
     if (!template) {
@@ -1013,51 +1124,187 @@ const OpenClawConfigCenterPage: React.FC = () => {
 
             {resourceTypeIsConfigurable ? (
               <div className="app-panel p-4 sm:p-5">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                  <input
-                    value={resourceSearch}
-                    onChange={(e) => setResourceSearch(e.target.value)}
-                    placeholder={t('openClawResourcesPage.searchPlaceholder')}
-                    className="app-input w-full"
-                  />
-                  <button type="button" onClick={openNewResourceEditor} className="app-button-primary whitespace-nowrap">
-                    {t('openClawResourcesPage.actions.new')}
-                  </button>
-                </div>
-                <div className="mt-3 text-sm text-gray-500">
-                  {t('openClawResourcesPage.resourceListHint')}
-                </div>
-                <div className="mt-4 space-y-3">
-                  {loading ? (
-                    <div className="text-sm text-gray-500">{t('openClawResourcesPage.loadingResources')}</div>
-                  ) : filteredResources.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">
-                      {t('openClawResourcesPage.noResources')}
-                    </div>
-                  ) : (
-                    filteredResources.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => openResourceEditor(item)}
-                        className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
-                          selectedResourceId === item.id ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white hover:border-gray-300'
-                        }`}
+                {resourceType === 'skill' ? (
+                  <>
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                      <label
+                        htmlFor="skill-archive-upload"
+                        className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-[#dfd6cf] bg-white px-4 py-3 text-sm text-[#3f3a36] transition hover:border-[#cfc3ba] hover:bg-[#fcfaf8]"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="font-medium text-gray-900">{item.name}</div>
-                            <div className="mt-1 text-xs text-gray-500">{item.resource_key}</div>
-                            {item.description && <div className="mt-2 line-clamp-2 text-sm text-gray-600">{item.description}</div>}
-                          </div>
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${item.enabled ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {item.enabled ? t('openClawResourcesPage.enabled') : t('openClawResourcesPage.disabled')}
-                          </span>
-                        </div>
+                        <span className="rounded-xl border border-[#d8d0ca] bg-[#f6f3f0] px-3 py-2 text-sm font-medium text-[#2f2a27]">
+                          {t('openClawResourcesPage.skillActions.chooseFile')}
+                        </span>
+                        <span className="min-w-0 truncate text-[#6d655f]">
+                          {skillUploadFile?.name || t('openClawResourcesPage.noFileSelected')}
+                        </span>
+                        <input
+                          id="skill-archive-upload"
+                          type="file"
+                          accept=".zip,application/zip,application/x-zip-compressed"
+                          onChange={(e) => setSkillUploadFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={uploadSkillArchive}
+                        disabled={!skillUploadFile || saving}
+                        className="app-button-primary whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {t('openClawResourcesPage.skillActions.uploadArchive')}
                       </button>
-                    ))
-                  )}
-                </div>
+                    </div>
+                    <div className="mt-3 text-sm text-gray-500">
+                      {t('openClawResourcesPage.skillUploadHint')}
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {loading ? (
+                        <div className="text-sm text-gray-500">{t('openClawResourcesPage.loadingSkills')}</div>
+                      ) : filteredSkills.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">
+                          {t('openClawResourcesPage.noSkills')}
+                        </div>
+                      ) : (
+                        paginatedSkills.map((item) => (
+                          <div
+                            key={item.id}
+                            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="font-medium text-gray-900">{item.name}</div>
+                                <div className="mt-1 text-xs text-gray-500">
+                                  {t('openClawResourcesPage.skillMeta', {
+                                    key: item.skill_key,
+                                    risk: getSkillRiskLabel(item.risk_level),
+                                    count: item.instance_count,
+                                  })}
+                                </div>
+                                {item.description && <div className="mt-2 line-clamp-2 text-sm text-gray-600">{item.description}</div>}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button type="button" onClick={() => downloadSkillAsset(item.id, item.name)} className="app-button-secondary">{t('openClawResourcesPage.skillActions.download')}</button>
+                                <button type="button" onClick={() => removeSkillAsset(item.id)} className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100">{t('common.delete')}</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {!loading && filteredSkills.length > 0 ? (
+                      <div className="mt-4 flex flex-col gap-3 border-t border-[#f3e7df] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="text-sm text-[#8f8681]">
+                          {t('openClawResourcesPage.paginationSummary', {
+                            pageSize: CONFIG_CENTER_PAGE_SIZE,
+                            from: (currentResourcePage - 1) * CONFIG_CENTER_PAGE_SIZE + 1,
+                            to: Math.min(currentResourcePage * CONFIG_CENTER_PAGE_SIZE, filteredSkills.length),
+                          })}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setResourcePage((current) => Math.max(1, current - 1))}
+                            disabled={currentResourcePage <= 1}
+                            className="app-button-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {t('openClawResourcesPage.paginationPrev')}
+                          </button>
+                          <div className="min-w-[88px] text-center text-sm font-medium text-[#5f5957]">
+                            {currentResourcePage} / {resourcePageTotal}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setResourcePage((current) => Math.min(resourcePageTotal, current + 1))}
+                            disabled={currentResourcePage >= resourcePageTotal}
+                            className="app-button-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {t('openClawResourcesPage.paginationNext')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                      <input
+                        value={resourceSearch}
+                        onChange={(e) => setResourceSearch(e.target.value)}
+                        placeholder={t('openClawResourcesPage.searchPlaceholder')}
+                        className="app-input w-full"
+                      />
+                      <button type="button" onClick={openNewResourceEditor} className="app-button-primary whitespace-nowrap">
+                        {t('openClawResourcesPage.actions.new')}
+                      </button>
+                    </div>
+                    <div className="mt-3 text-sm text-gray-500">
+                      {t('openClawResourcesPage.resourceListHint')}
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {loading ? (
+                        <div className="text-sm text-gray-500">{t('openClawResourcesPage.loadingResources')}</div>
+                      ) : filteredResources.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">
+                          {t('openClawResourcesPage.noResources')}
+                        </div>
+                      ) : (
+                        paginatedResources.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => openResourceEditor(item)}
+                            className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                              selectedResourceId === item.id ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="font-medium text-gray-900">{item.name}</div>
+                                <div className="mt-1 text-xs text-gray-500">{item.resource_key}</div>
+                                {item.description && <div className="mt-2 line-clamp-2 text-sm text-gray-600">{item.description}</div>}
+                              </div>
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${item.enabled ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                {item.enabled ? t('openClawResourcesPage.enabled') : t('openClawResourcesPage.disabled')}
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    {!loading && filteredResources.length > 0 ? (
+                      <div className="mt-4 flex flex-col gap-3 border-t border-[#f3e7df] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="text-sm text-[#8f8681]">
+                          {t('openClawResourcesPage.paginationSummary', {
+                            pageSize: CONFIG_CENTER_PAGE_SIZE,
+                            from: (currentResourcePage - 1) * CONFIG_CENTER_PAGE_SIZE + 1,
+                            to: Math.min(currentResourcePage * CONFIG_CENTER_PAGE_SIZE, filteredResources.length),
+                          })}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setResourcePage((current) => Math.max(1, current - 1))}
+                            disabled={currentResourcePage <= 1}
+                            className="app-button-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {t('openClawResourcesPage.paginationPrev')}
+                          </button>
+                          <div className="min-w-[88px] text-center text-sm font-medium text-[#5f5957]">
+                            {currentResourcePage} / {resourcePageTotal}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setResourcePage((current) => Math.min(resourcePageTotal, current + 1))}
+                            disabled={currentResourcePage >= resourcePageTotal}
+                            className="app-button-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {t('openClawResourcesPage.paginationNext')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
               </div>
             ) : (
               <div className="app-panel flex min-h-[420px] items-center justify-center p-6 sm:p-8">

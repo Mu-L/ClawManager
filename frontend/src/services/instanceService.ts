@@ -8,6 +8,7 @@ import type {
   InstanceRuntimeDetails,
   InstanceConfigRevision,
 } from "../types/instance";
+import type { InstanceSkill } from "../types/skill";
 
 export const instanceService = {
   // Get instance list
@@ -152,5 +153,10 @@ export const instanceService = {
         "Content-Type": "multipart/form-data",
       },
     });
+  },
+
+  listSkills: async (id: number): Promise<InstanceSkill[]> => {
+    const response = await api.get(`/instances/${id}/skills`);
+    return response.data.data;
   },
 };

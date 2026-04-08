@@ -1,5 +1,178 @@
 import api from './api';
 
+export interface AdminSkillRecord {
+  id: number;
+  external_skill_id: string;
+  user_id: number;
+  skill_key: string;
+  name: string;
+  status: string;
+  source_type: string;
+  risk_level: string;
+  scan_status: string;
+  instance_count: number;
+  risk_reason?: string;
+  top_findings?: SkillFinding[];
+  last_scanned_at?: string;
+  updated_at: string;
+}
+
+export interface SkillFinding {
+  analyzer: string;
+  severity: string;
+  category: string;
+  rule_id: string;
+  title: string;
+  description: string;
+  file_path?: string;
+  line_number?: number;
+  remediation: string;
+  snippet?: string;
+}
+
+export interface SecurityScanConfig {
+  active_mode: string;
+  default_mode: string;
+  quick_analyzers: string[];
+  deep_analyzers: string[];
+  quick_timeout_seconds: number;
+  deep_timeout_seconds: number;
+  allow_fallback: boolean;
+  scanner_status: {
+    connected: boolean;
+    llm_enabled: boolean;
+    status_label: string;
+    available_capabilities: string[];
+  };
+  skill_scanner_config: {
+    namespace: string;
+    deployment_name: string;
+    llm_api_key: string;
+    llm_model: string;
+    llm_base_url: string;
+    meta_llm_api_key: string;
+    meta_llm_model: string;
+    meta_llm_base_url: string;
+  };
+}
+
+export interface SecurityScanJobItem {
+  id: number;
+  asset_type: string;
+  asset_id: number;
+  asset_name: string;
+  status: string;
+  progress_pct: number;
+  risk_level?: string;
+  summary?: string;
+  scan_result_id?: number;
+  cached_result: boolean;
+  triggered_analyzers?: string[];
+  findings?: SkillFinding[];
+  error_message?: string;
+  started_at?: string;
+  finished_at?: string;
+}
+
+export interface SecurityScanReport {
+  job_id: number;
+  asset_type: string;
+  scan_mode: string;
+  scan_scope: string;
+  status: string;
+  started_at?: string;
+  finished_at?: string;
+  total_items: number;
+  completed_items: number;
+  failed_items: number;
+  risk_counts: Record<string, number>;
+  findings_summary: Array<{ asset_name: string; summary: string }>;
+  configured_analyzers: string[];
+  available_analyzers: string[];
+  triggered_analyzers: string[];
+  items: SecurityScanJobItem[];
+  config: SecurityScanConfig;
+}
+
+export interface SecurityScanJob {
+  id: number;
+  asset_type: string;
+  scan_mode: string;
+  scan_scope: string;
+  status: string;
+  requested_by?: number;
+  total_items: number;
+  completed_items: number;
+  failed_items: number;
+  current_item_name?: string;
+  progress_pct: number;
+  started_at?: string;
+  finished_at?: string;
+  created_at: string;
+  updated_at: string;
+  items?: SecurityScanJobItem[];
+  report?: SecurityScanReport;
+}
+
+function normalizeSecurityScanConfig(config: any): SecurityScanConfig {
+  return {
+    active_mode: typeof config?.active_mode === 'string' ? config.active_mode : typeof config?.default_mode === 'string' ? config.default_mode : 'quick',
+    default_mode: typeof config?.default_mode === 'string' ? config.default_mode : 'quick',
+    quick_analyzers: Array.isArray(config?.quick_analyzers) ? config.quick_analyzers : [],
+    deep_analyzers: Array.isArray(config?.deep_analyzers) ? config.deep_analyzers : [],
+    quick_timeout_seconds: typeof config?.quick_timeout_seconds === 'number' ? config.quick_timeout_seconds : 30,
+    deep_timeout_seconds: typeof config?.deep_timeout_seconds === 'number' ? config.deep_timeout_seconds : 120,
+    allow_fallback: Boolean(config?.allow_fallback),
+    scanner_status: {
+      connected: Boolean(config?.scanner_status?.connected),
+      llm_enabled: Boolean(config?.scanner_status?.llm_enabled),
+      status_label: typeof config?.scanner_status?.status_label === 'string' ? config.scanner_status.status_label : '未启用',
+      available_capabilities: Array.isArray(config?.scanner_status?.available_capabilities) ? config.scanner_status.available_capabilities : [],
+    },
+    skill_scanner_config: {
+      namespace: typeof config?.skill_scanner_config?.namespace === 'string' ? config.skill_scanner_config.namespace : '',
+      deployment_name: typeof config?.skill_scanner_config?.deployment_name === 'string' ? config.skill_scanner_config.deployment_name : '',
+      llm_api_key: typeof config?.skill_scanner_config?.llm_api_key === 'string' ? config.skill_scanner_config.llm_api_key : '',
+      llm_model: typeof config?.skill_scanner_config?.llm_model === 'string' ? config.skill_scanner_config.llm_model : '',
+      llm_base_url: typeof config?.skill_scanner_config?.llm_base_url === 'string' ? config.skill_scanner_config.llm_base_url : '',
+      meta_llm_api_key: typeof config?.skill_scanner_config?.meta_llm_api_key === 'string' ? config.skill_scanner_config.meta_llm_api_key : '',
+      meta_llm_model: typeof config?.skill_scanner_config?.meta_llm_model === 'string' ? config.skill_scanner_config.meta_llm_model : '',
+      meta_llm_base_url: typeof config?.skill_scanner_config?.meta_llm_base_url === 'string' ? config.skill_scanner_config.meta_llm_base_url : '',
+    },
+  };
+}
+
+function normalizeSecurityScanJobItem(item: any): SecurityScanJobItem {
+  return {
+    ...item,
+    triggered_analyzers: Array.isArray(item?.triggered_analyzers) ? item.triggered_analyzers : [],
+    findings: Array.isArray(item?.findings) ? item.findings : [],
+  };
+}
+
+function normalizeSecurityScanReport(report: any): SecurityScanReport {
+  return {
+    ...report,
+    scan_scope: typeof report?.scan_scope === 'string' ? report.scan_scope : 'incremental',
+    risk_counts: report?.risk_counts ?? {},
+    findings_summary: Array.isArray(report?.findings_summary) ? report.findings_summary : [],
+    configured_analyzers: Array.isArray(report?.configured_analyzers) ? report.configured_analyzers : [],
+    available_analyzers: Array.isArray(report?.available_analyzers) ? report.available_analyzers : [],
+    triggered_analyzers: Array.isArray(report?.triggered_analyzers) ? report.triggered_analyzers : [],
+    items: Array.isArray(report?.items) ? report.items.map(normalizeSecurityScanJobItem) : [],
+    config: normalizeSecurityScanConfig(report?.config),
+  };
+}
+
+function normalizeSecurityScanJob(job: any): SecurityScanJob {
+  return {
+    ...job,
+    scan_scope: typeof job?.scan_scope === 'string' ? job.scan_scope : 'incremental',
+    items: Array.isArray(job?.items) ? job.items.map(normalizeSecurityScanJobItem) : undefined,
+    report: job?.report ? normalizeSecurityScanReport(job.report) : undefined,
+  };
+}
+
 export interface ResourceSummary {
   capacity: number;
   allocatable: number;
@@ -219,6 +392,36 @@ export interface CostOverview {
 }
 
 export const adminService = {
+  listSkills: async (): Promise<AdminSkillRecord[]> => {
+    const response = await api.get('/admin/skills');
+    return response.data.data ?? [];
+  },
+
+  getSecurityConfig: async (): Promise<SecurityScanConfig> => {
+    const response = await api.get('/admin/security/config');
+    return normalizeSecurityScanConfig(response.data.data);
+  },
+
+  saveSecurityConfig: async (payload: SecurityScanConfig): Promise<SecurityScanConfig> => {
+    const response = await api.put('/admin/security/config', payload);
+    return normalizeSecurityScanConfig(response.data.data);
+  },
+
+  startSecurityScan: async (payload: { asset_type: string; scan_scope?: string; scan_mode?: string; asset_id?: number }): Promise<SecurityScanJob> => {
+    const response = await api.post('/admin/security/scan-jobs', payload);
+    return normalizeSecurityScanJob(response.data.data);
+  },
+
+  listSecurityScanJobs: async (limit: number = 20): Promise<SecurityScanJob[]> => {
+    const response = await api.get('/admin/security/scan-jobs', { params: { limit } });
+    return Array.isArray(response.data.data) ? response.data.data.map(normalizeSecurityScanJob) : [];
+  },
+
+  getSecurityScanJob: async (jobId: number): Promise<SecurityScanJob> => {
+    const response = await api.get(`/admin/security/scan-jobs/${jobId}`);
+    return normalizeSecurityScanJob(response.data.data);
+  },
+
   getClusterResources: async (): Promise<ClusterResourceOverview> => {
     const response = await api.get('/system-settings/cluster-resources');
     return response.data.data;
