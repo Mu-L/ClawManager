@@ -196,7 +196,7 @@ data:
   005_update_openclaw_default_image.sql: |
     USE clawmanager;
     UPDATE system_image_settings
-    SET image = 'ghcr.io/Yuan-lab-LLM/AgentsRuntime/openclaw:latest'
+    SET image = 'ghcr.io/yuan-lab-llm/agentsruntime/openclaw:latest'
     WHERE instance_type = 'openclaw'
       AND image IN (
         'ericpearlee/openclaw:v2026.3.24',
@@ -515,7 +515,7 @@ data:
   012_update_agents_runtime_default_images.sql: |
     USE clawmanager;
     UPDATE system_image_settings
-    SET image = 'ghcr.io/Yuan-lab-LLM/AgentsRuntime/openclaw:latest'
+    SET image = 'ghcr.io/yuan-lab-llm/agentsruntime/openclaw:latest'
     WHERE instance_type = 'openclaw'
       AND image IN (
         'ericpearlee/openclaw:v2026.3.24',
@@ -523,12 +523,21 @@ data:
       );
 
     UPDATE system_image_settings
-    SET image = 'ghcr.io/Yuan-lab-LLM/AgentsRuntime/hermes:latest'
+    SET image = 'ghcr.io/yuan-lab-llm/agentsruntime/hermes:latest'
     WHERE instance_type = 'hermes'
       AND image IN (
         'registry.example.com/hermes-webtop:latest',
         'lscr.io/linuxserver/webtop:ubuntu-xfce'
       );
+  013_normalize_agents_runtime_image_names.sql: |
+    USE clawmanager;
+    UPDATE system_image_settings
+    SET image = 'ghcr.io/yuan-lab-llm/agentsruntime/openclaw:latest'
+    WHERE image = 'ghcr.io/Yuan-lab-LLM/AgentsRuntime/openclaw:latest';
+
+    UPDATE system_image_settings
+    SET image = 'ghcr.io/yuan-lab-llm/agentsruntime/hermes:latest'
+    WHERE image = 'ghcr.io/Yuan-lab-LLM/AgentsRuntime/hermes:latest';
 ---
 apiVersion: v1
 kind: PersistentVolume
