@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -20,6 +21,11 @@ import (
 
 	"clawreef/internal/models"
 	"clawreef/internal/repository"
+)
+
+var (
+	chownRuntimePathOwner = os.Chown
+	currentEffectiveUID   = os.Geteuid
 )
 
 const (
@@ -691,7 +697,13 @@ func liteRuntimePersistentAncestors(workspacePath, persistentRoot string) []stri
 }
 
 func chownRuntimePath(targetPath string, uid, gid int, mode os.FileMode) error {
-	if err := os.Chown(targetPath, uid, gid); err != nil {
+	if err := chownRuntimePathOwner(targetPath, uid, gid); err != nil {
+		if currentEffectiveUID() != 0 && errors.Is(err, os.ErrPermission) {
+			if chmodErr := os.Chmod(targetPath, mode); chmodErr != nil {
+				return fmt.Errorf("failed to set lite runtime permissions on %s: %w", targetPath, chmodErr)
+			}
+			return nil
+		}
 		return fmt.Errorf("failed to set lite runtime owner on %s: %w", targetPath, err)
 	}
 	if err := os.Chmod(targetPath, mode); err != nil {

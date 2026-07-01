@@ -237,6 +237,63 @@ func TestMaterializeLiteInstanceSkillWritesHermesHomeSkill(t *testing.T) {
 	target := filepath.Join(workspacePath, "home", ".hermes", "skills", "paper-ranker")
 	assertFileEquals(t, filepath.Join(target, "SKILL.md"), "# Paper Ranker\n")
 }
+func TestChownRuntimePathToleratesNonRootPermissionDenied(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "skill-file")
+	if err := os.WriteFile(target, []byte("skill"), 0644); err != nil {
+		t.Fatalf("WriteFile(target): %v", err)
+	}
+
+	oldChown := chownRuntimePathOwner
+	oldEffectiveUID := currentEffectiveUID
+	t.Cleanup(func() {
+		chownRuntimePathOwner = oldChown
+		currentEffectiveUID = oldEffectiveUID
+	})
+	chownRuntimePathOwner = func(string, int, int) error {
+		return os.ErrPermission
+	}
+	currentEffectiveUID = func() int {
+		return 1000
+	}
+
+	if err := chownRuntimePath(target, RuntimeLinuxID(77), RuntimeLinuxID(77), 0600); err != nil {
+		t.Fatalf("chownRuntimePath() error = %v", err)
+	}
+	if os.PathSeparator == '/' {
+		info, err := os.Stat(target)
+		if err != nil {
+			t.Fatalf("Stat(target): %v", err)
+		}
+		if got := info.Mode().Perm(); got != 0600 {
+			t.Fatalf("target mode = %v, want 0600", got)
+		}
+	}
+}
+
+func TestChownRuntimePathReportsRootPermissionDenied(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "skill-file")
+	if err := os.WriteFile(target, []byte("skill"), 0644); err != nil {
+		t.Fatalf("WriteFile(target): %v", err)
+	}
+
+	oldChown := chownRuntimePathOwner
+	oldEffectiveUID := currentEffectiveUID
+	t.Cleanup(func() {
+		chownRuntimePathOwner = oldChown
+		currentEffectiveUID = oldEffectiveUID
+	})
+	chownRuntimePathOwner = func(string, int, int) error {
+		return os.ErrPermission
+	}
+	currentEffectiveUID = func() int {
+		return 0
+	}
+
+	err := chownRuntimePath(target, RuntimeLinuxID(90), RuntimeLinuxID(90), 0600)
+	if err == nil || !strings.Contains(err.Error(), "failed to set lite runtime owner") {
+		t.Fatalf("chownRuntimePath() error = %v, want owner error", err)
+	}
+}
 func TestWriteSkillDirectoryAtomicallyUsesNestedTempRoot(t *testing.T) {
 	targetRoot := t.TempDir()
 	err := writeSkillDirectoryAtomically(targetRoot, "marker-pdf-ingest", map[string][]byte{
